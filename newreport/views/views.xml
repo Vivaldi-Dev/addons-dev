@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="action_vol2" model="ir.actions.client">
+        <field name="name">Relatorio</field>
+        <field name="tag">reportss</field>
+    </record>
+
+    <menuitem name="Relatório" id="report_menu" sequence="10">
+        <menuitem name="Subrelatório" id="report" sequence="10" action="action_vol2"/>
+    </menuitem>
+</odoo>

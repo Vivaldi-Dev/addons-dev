@@ -1,0 +1,74 @@
+<template xml:space="preserve">
+    <t t-name="ipsreport">
+        <div class="container mt-5">
+
+            <style>
+                .table thead th {
+                    vertical-align: bottom;
+                    border-bottom: 2px solid #000 !important;
+                }
+
+                .table-bordered th, .table-bordered td {
+                    border: 1px solid #000 !important;
+                }
+
+                .border {
+                    border: solid 2px !important;
+                }
+
+               .teststyle {
+                    font-size: 15px;
+                    font-weight: 600;
+                }
+
+
+            </style>
+
+            <div class="body-panel">
+                <div class="row border border-dark border-3 mx-1 mb-5">
+                    <div class="col-6">
+                        <div class="mt-4">
+                            <p id="company_name" class="mb-0 teststyle">Nome da Empresa</p>
+                        </div>
+                    </div>
+
+                    <div class="col-6" style="text-align: end;">
+                        <div>
+                            <p class="mb-0 teststyle">Mapa de IRPS</p>
+                            <p id="mes" class="mb-0 teststyle"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <table class="table table-bordered border-dark">
+                    <thead>
+                        <tr>
+                            <th scope="col">Codigo do Funcionário</th>
+                            <th scope="col">Nome</th>
+                            <th scope="col">Nº de Contribuinte</th>
+                            <th scope="col">Nº de Beneficiario</th>
+                            <th scope="col">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="irps">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row mx-4 mt-3">
+                <div class="col-6 margintop">
+                    <a href="#" class="btn btn-info me-1 btn-download">
+                        <i class="fa fa-download"></i>
+                        Baixar
+                    </a>
+
+                    <a href="#" class="btn btn-warning me-1 btn-download-excel">
+                        <i class="fa fa-file-excel-o"></i>
+                        Baixar Excel
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </t>
+</template>

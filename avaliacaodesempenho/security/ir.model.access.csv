@@ -1,0 +1,16 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_avaliacaodesempenho_avaliacaodesempenho,avaliacaodesempenho,model_avaliacaodesempenho_avaliacaodesempenho,base.group_user,1,1,1,1
+access_avaliar_template,avaliar,model_avaliar_template,base.group_user,1,1,1,1
+access_avaliar_funcionario,avaliar,model_avaliar_funcionario,base.group_user,1,1,1,1
+access_avaliacao_tipo,avaliacao,model_avaliacao_tipo,base.group_user,1,1,1,1
+access_comissao_tipo,comissao,model_comissao_tipo,base.group_user,1,1,1,1
+access_comissao_template,comissao,model_comissao_template,base.group_user,1,1,1,1
+access_comissao_avaliadora,comissao,model_comissao_avaliadora,base.group_user,1,1,1,1
+access_avaliacao_dashboard,avaliacao,model_avaliacao_dashboard,base.group_user,1,1,1,1
+access_avaliacao_individual,avaliacao,model_avaliacao_individual,base.group_user,1,1,1,1
+
+
+
+
+
+

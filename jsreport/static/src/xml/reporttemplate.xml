@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template xml:space="preserve">
+    <t t-name="Reportable">
+
+        <div class="container-fluid mb-5 mt-5">
+
+            <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet"/>
+            <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+            <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+            <style>
+                body {
+                    background-color: #eee;
+                }
+
+                .card {
+                    box-shadow: 0 20px 27px 0 rgb(0 0 0 / 5%);
+                    position: relative;
+                    display: flex;
+                    flex-direction: column;
+                    min-width: 0;
+                    word-wrap: break-word;
+                    background-color: #fff;
+                    background-clip: border-box;
+                    border: 0 solid rgba(0, 0, 0, .125);
+                    border-radius: 1rem;
+                }
+
+
+            </style>
+
+            <div class="row ">
+                <div class="col-lg-8 ">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="invoice-title">
+                                <h4 class="float-end font-size-15">Relatório <span class="order-number"></span></h4>
+                                <div class="mb-4">
+                                    <h2 class="mb-1 text-muted">Chicken Palace</h2>
+                                </div>
+                                <div class="text-muted">
+                                    <p class="mb-1">3184 Spruce Drive Pittsburgh, PA 15201</p>
+                                    <p class="mb-1"><i class="uil uil-envelope-alt me-1"></i>xyz@987.com</p>
+                                    <p><i class="uil uil-phone me-1"></i>012-345-6789</p>
+                                </div>
+                            </div>
+                            <hr class="my-4"/>
+                            <div class="row mb-3">
+                                <div class="col-sm-6">
+                                    <div class="text-muted">
+                                        <h5 class="font-size-16 mb-3">Criado por:</h5>
+                                        <h5 class="font-size-15 mb-2 create_uid">-----</h5>
+                                        <p class="mb-1 email">E-mail: ----- </p>
+                                        <p class="mb-0">Telefone: (11) 91234-5678</p>
+                                        <p class="mb-0">Contato: Maria Silva</p>
+                                        <p class="mb-0">Data do Relatório: 22/10/2024</p>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="text-muted text-sm-end">
+                                        <div class="mt-4">
+                                            <h5 class="font-size-15 mb-1">Data do Relatório:</h5>
+                                            <p class="invoice-date">------</p>
+                                        </div>
+                                        <div class="mt-4">
+                                            <h5 class="font-size-15 mb-1">Nº do Relatório:</h5>
+                                            <p class="order-number">#</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="py-2">
+                                <div class="report-container"></div>
+                                <div class="mt-3">
+
+                                </div>
+
+                                <div class="d-print-none mt-4">
+                                    <div class="float-end">
+                                        <a href="javascript:window.print()" class="btn btn-success me-1">
+                                            <i class="fa fa-print"></i>
+                                        </a>
+                                        <a href="#" class="btn btn-primary w-md enviar" data-bs-toggle="modal"
+                                           data-bs-target="#sendModal">Enviar</a>
+
+                                        <div class="modal fade" id="sendModal" tabindex="-1" role="dialog"
+                                             aria-labelledby="sendModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog" role="document">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="sendModalLabel">Enviar relatório para usuários</h5>
+                                                        <button type="button" class="close fechar"
+                                                                data-bs-dismiss="modal"
+                                                                aria-label="Close">
+                                                            <span aria-hidden="true">x</span>
+                                                        </button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <label for="userSelect"
+                                                               class="form-label">Selecionar usuários</label>
+                                                        <select id="userSelect" class="form-control select2"
+                                                                multiple="multiple">
+                                                            <option value="">Carregando usuários...</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary fechar"
+                                                                data-bs-dismiss="modal">Cancelar</button>
+                                                        <button type="button" class="btn btn-primary"
+                                                                id="sendReportButton">Enviar Relatório</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <a href="#" class="btn btn-info me-1 btn-download">
+                                            <i class="fa fa-download"></i>
+                                            Baixar
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="date-ranges mb-3" id="dateRangeInputs">
+                        <label for="revenueTypes" class="form-label">Tipo de Receita</label>
+                        <select id="revenueTypes" class="form-control mb-2 select2">
+                            <option value="">Selecione o Report</option>
+                        </select>
+
+                        <button class="mt-2 btn btn-primary rounded" id="applyButton">Aplicar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</template>

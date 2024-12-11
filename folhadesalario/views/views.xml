@@ -1,0 +1,101 @@
+<odoo>
+
+    <record id="view_company_item_form" model="ir.ui.view">
+        <field name="name">company.form</field>
+        <field name="model">company.info</field>
+        <field name="arch" type="xml">
+            <form string="Company">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="nuit"/>
+                        </group>
+                        <group>
+                            <field name="department"/>
+                            <field name="report_month_year"/>
+                        </group>
+                    </group>
+
+                    <group colspan="2">
+                        <group>
+
+                            <notebook>
+                                <page string="Remuneração">
+                                    <field name="payroll_income_ids">
+                                        <tree editable="bottom">
+                                            <field name="employee_code"/>
+                                            <field name="employee_name"/>
+                                            <field name="employee_position"/>
+                                            <field name="base_salary"/>
+                                            <field name="incentive"/>
+                                            <field name="overtime"/>
+                                            <field name="others_income"/>
+                                            <field name="total_income"/>
+                                        </tree>
+                                    </field>
+                                </page>
+                            </notebook>
+                        </group>
+
+                        <group>
+
+                            <notebook>
+                                <page string="Descontos">
+                                    <field name="payroll_discount_ids">
+                                        <tree editable="bottom">
+                                            <field name="inss"/>
+                                            <field name="irps"/>
+                                            <field name="absences"/>
+                                            <field name="others_discount"/>
+                                            <field name="total_discount"/>
+                                            <field name="net_pay"/>
+                                        </tree>
+                                    </field>
+                                </page>
+                            </notebook>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group>
+                            <field name="hr_department"/>
+                        </group>
+                        <group>
+                            <field name="approved_by"/>
+                        </group>
+
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_tree_company" model="ir.ui.view">
+        <field name="name">company.tree</field>
+        <field name="model">company.info</field>
+        <field name="arch" type="xml">
+            <tree string="Company">
+                <field name="name"/>
+                <field name="nuit"/>
+                <field name="department"/>
+                <field name="report_month_year"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_company" model="ir.actions.act_window">
+        <field name="name">Company Info</field>
+        <field name="res_model">company.info</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No data added yet
+            </p>
+        </field>
+    </record>
+
+    <menuitem name="Folha de Salário" id="company_menu" web_icon="folhadesalario,static/description/icon.png"
+              action="action_company"
+              sequence="30"/>
+</odoo>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <template id="templateId" name="tableId">
+        <t t-set="no_header" t-value="True"/>
+        <style>
+             .o_header, .o_footer { display: none !important; }
+        </style>
+        <t t-call="website.layout">
+            <div class="container">
+                <div class="row py-5">
+                    <div class="col">
+                        <h1>QWEB Tutorials</h1>
+                        <div class="jsweb"/>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

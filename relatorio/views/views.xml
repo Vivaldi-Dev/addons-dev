@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="action_owl" model="ir.actions.client">
+        <field name="name">Relatório</field>
+        <field name="tag">sdsdsd</field>
+        <field name="target">main</field>
+    </record>
+
+    <menuitem id="dashboardreport" name="Dashboard" sequence="90" groups="base.group_user"/>
+
+    <menuitem id="menu_base" name="Relatório" parent="dashboardreport" action="action_owl" sequence="10"
+              groups="base.group_user"/>
+
+    <record id="action_vol2" model="ir.actions.client">
+        <field name="name">Relatorio</field>
+        <field name="tag">sdsdsd</field>
+    </record>
+
+    <menuitem name="Relatório" id="report_menu" sequence="10">
+        <menuitem name="Subrelatório" id="report" sequence="10" action="action_vol2"/>
+    </menuitem>
+</odoo>

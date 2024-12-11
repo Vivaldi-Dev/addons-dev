@@ -1,0 +1,415 @@
+<odoo>
+    <data>
+        <record id="action_evaluation_dashboard" model="ir.actions.client">
+            <field name="name">Avaliacao Dashboard</field>
+            <field name="tag">event_dashboard</field>
+        </record>
+
+        <record id="avaliar_tree_view" model="ir.ui.view">
+            <field name="name">avaliar.tree</field>
+            <field name="model">avaliacaodesempenho.avaliacaodesempenho</field>
+            <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="description"/>
+                <field name="peso"/>
+                <field name="escala"/>
+                <field name="competencia" />
+            </tree>
+            </field>
+        </record>
+
+        <record id="action_avaliar" model="ir.actions.act_window">
+            <field name="name">Avaliação de Desempenho</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">avaliacaodesempenho.avaliacaodesempenho</field>
+            <field name="view_mode">tree,form</field>
+            <field name="context">{}</field>
+            <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+            Crie sua primeira avaliação!
+            </p>
+            </field>
+            <field name="view_id" ref="avaliar_tree_view"/>
+        </record>
+
+        <record id="sh_template_form_view" model="ir.ui.view">
+            <field name="name">avaliar.funcionario.template.form</field>
+            <field name="model">avaliar.template</field>
+            <field name="arch" type="xml">
+            <form>
+                <group>
+                    <group>
+                        <field name="name" />
+                    </group>
+                    <group>
+                        <field name="avaliar_ids" widget="many2many_tags" />
+                    </group>
+                </group>
+            </form>
+            </field>
+        </record>
+        <record id="sh_project_checklist_template_tree_view" model="ir.ui.view">
+            <field name="name">sh.task.checklist.template.tree</field>
+            <field name="model">avaliar.template</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="name" />
+                    <field name="avaliar_ids" />
+                </tree>
+            </field>
+        </record>
+
+        <record id="action_template" model="ir.actions.act_window">
+            <field name="name">Template </field>
+            <field name="res_model">avaliar.template</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="sh_comissao_template_form_view" model="ir.ui.view">
+            <field name="name">comissao.funcionario.template.form</field>
+            <field name="model">comissao.template</field>
+            <field name="arch" type="xml">
+                <form>
+                    <group>
+                        <group>
+                            <field name="name" />
+                        </group>
+                        <group>
+                            <field name="comissao_id" widget="many2many_tags" />
+                        </group>
+                    </group>
+                </form>
+            </field>
+        </record>
+
+        <record id="sh_comissao_template_tree_view" model="ir.ui.view">
+            <field name="name">sh.task.comissao.template.tree</field>
+            <field name="model">comissao.template</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="name" />
+                    <field name="comissao_id" />
+                </tree>
+            </field>
+        </record>
+
+        <record id="action_comissao_template" model="ir.actions.act_window">
+            <field name="name">Template Comissao </field>
+            <field name="res_model">comissao.template</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="view_avaliar_funcionario_form" model="ir.ui.view">
+            <field name="name">avaliar.funcionario.form</field>
+            <field name="model">avaliar.funcionario</field>
+            <field name="arch" type="xml">
+            <form string="Avaliar Funcionario">
+                <header>
+                    <field name="status" widget="statusbar"/>
+                    <button name="action_send" string="Avaliar o desempenho" type="object" class="btn-primary"  attrs="{'invisible': [('status', '!=', 'novo')]}"/>
+                    <button name="action_cancelar" string="Cancelar" type="object" class="btn-sucess" attrs="{'invisible': [('status', '==', 'concluir')]}"  />
+                    <field name="should_hide_total_nota" invisible="1"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="comissao_list"/>
+                        </group>
+                        <group>
+                            <field name="avaliador"/>
+                        </group>
+
+                    </group>
+                    <group>
+                        <group>
+                            <field name="name" />
+                        </group>
+                        <group>
+                            <field name="cargo"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="departamento"/>
+                        </group>
+                        <group>
+                            <field name="data_aprovacao"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="check_list" widget="many2many_tags" invisible="1"/>
+                        <field name="custom_checklist_ids">
+                            <tree editable="bottom">
+                                <field name="name"/>
+                                <field name="peso"/>
+                                <field name="escala"/>
+                                <field name="nota"/>
+                            </tree>
+                        </field>
+                    </group>
+                    <group class="oe_subtotal_footer oe_right">
+                        <field name="total_nota"  attrs="{'invisible': [('should_hide_total_nota', '=', True)]}"/>
+                    </group>
+                    <group>
+                        <field name="anotacoes"/>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="assinatura_colaborador" readonly="True"/>
+                            <field name="assinatura_avaliador" readonly="True"/>
+                        </group>
+                        <group>
+                            <field name="assinatura_responsavel" readonly="True"/>
+                        </group>
+                    </group>
+                </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="activity_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+        <record id="view_avaliar_funcionario_tree" model="ir.ui.view">
+            <field name="name">avaliar.funcionario.tree</field>
+            <field name="model">avaliar.funcionario</field>
+            <field name="arch" type="xml">
+                <tree string="Avaliar Funcionario">
+                    <field name="name"/>
+                    <field name="data_aprovacao"/>
+                    <field name="cargo"/>
+                    <field name="departamento"/>
+                    <field name="avaliador"/>
+                    <field name="status"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_avaliacao_individual_form" model="ir.ui.view">
+            <field name="name">avaliar.individual.form</field>
+            <field name="model">avaliacao.individual</field>
+            <field name="arch" type="xml">
+                <form string="Avaliar Funcionario">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                            </group>
+                            <group>
+                                <field name="cargo"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+                                <field name="avaliador"/>
+                            </group>
+                            <group>
+                                <field name="data_aprovacao"/>
+                            </group>
+                        </group>
+                        <group>
+                            <field name="check_individual" widget="many2many_tags"/>
+                            <field name="custom_individual_ids">
+                                <tree editable="bottom">
+                                <field name="name"/>
+                                    <field name="trimestre1"/>
+                                    <field name="trimestre2"/>
+                                    <field name="trimestre3"/>
+                                    <field name="trimestre4"/>
+                                </tree>
+                            </field>
+                        </group>
+
+                        <group>
+                            <field name="anotacoes" placeholder="Registre aqui os dados relevantes e os feedbacks aplicados, com as respectivas datas"/>
+                        </group>
+                    </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="activity_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_avaliar_inndividual_tree" model="ir.ui.view">
+            <field name="name">avaliar.individual.tree</field>
+            <field name="model">avaliacao.individual</field>
+            <field name="arch" type="xml">
+                <tree string="Avaliar Funcionario">
+                    <field name="name"/>
+                    <field name="data_aprovacao"/>
+                    <field name="cargo"/>
+                    <field name="departamento"/>
+                    <field name="avaliador"/>
+                    <field name="status"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_comissao_avaliadora_form" model="ir.ui.view">
+            <field name="name">comissao.avaliadora.form</field>
+            <field name="model">comissao.avaliadora</field>
+            <field name="arch" type="xml">
+                <form string="Comissao Avaliadora">
+                    <group>
+                        <field name="name"/>
+                        <field name="avaliador_ids" widget="many2many_tags"/>
+                        <field name="departamento_ids" widget="many2many_tags"/>
+                        <field name="funcionario_ids" widget="many2many_tags"/>
+                    <field name="competencia_list" widget="many2many_tags"/>
+                    </group>
+                    </form>
+                </field>
+        </record>
+
+        <record id="view_avaliar_funcionario_aprovar_tree" model="ir.ui.view">
+            <field name="name">avaliar.funcionario.aprovar.tree</field>
+            <field name="model">avaliar.funcionario</field>
+            <field name="arch" type="xml">
+                <tree string="Funcionários a Aprovar">
+                    <field name="name"/>
+                    <field name="cargo"/>
+                    <field name="departamento"/>
+                    <field name="status"/>
+                </tree>
+            </field>
+        </record>
+        <record id="action_avaliar_funcionario_aprovar" model="ir.actions.act_window">
+            <field name="name">Funcionários a Aprovar</field>
+            <field name="res_model">avaliar.funcionario</field>
+            <field name="view_mode">tree,form</field>
+            <field name="domain">[('status', '=', 'aprovar')]</field>
+            <field name="view_id" ref="view_avaliar_funcionario_aprovar_tree"/>
+        </record>
+
+        <record id="view_avaliar_funcionario_aprovar_form" model="ir.ui.view">
+            <field name="name">avaliar.funcionario.aprovar.form</field>
+            <field name="model">avaliar.funcionario</field>
+            <field name="arch" type="xml">
+                <form string="Avaliar Funcionario - Aprovar">
+                    <header>
+                        <field name="status" widget="statusbar"/>
+                        <button name="action_send" string="Avaliar o desempenho" type="object" class="btn-primary"  attrs="{'invisible': [('status', '!=', 'novo')]}"/>
+                        <button name="action_cancelar" string="Cancelar" type="object" class="btn-sucess" attrs="{'invisible': [('status', '==', 'concluir')]}"  />
+                        <button name="action_aprove" string="Aprovar Avaliação" type="object" class="btn-primary" attrs="{'invisible': [('status', '!=', 'espera')]}"/>-->
+                        <button name="action_concluir" string="Concluir Avaliação" type="object" class="btn-primary" attrs="{'invisible': [('status', '!=', 'aprovar')]}"/>
+                        <button name="action_rejeitar" string="Rejeitar" type="object" class="btn-sucess" attrs="{'invisible': [('status', '!=', 'concluido')]}"/>
+                        <field name="should_hide_total_nota" invisible="1"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="comissao_list"/>
+                            </group>
+                            <group>
+                                <field name="avaliador"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+                                <field name="name" />
+                            </group>
+                            <group>
+                                <field name="cargo"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+                                <field name="departamento"/>
+                            </group>
+                            <group>
+                                <field name="data_aprovacao"/>
+                            </group>
+                        </group>
+                        <group>
+                            <field name="check_list" widget="many2many_tags" invisible="1"/>
+                            <field name="custom_checklist_ids">
+                                <tree editable="bottom">
+                                    <field name="name"/>
+                                    <field name="peso"/>
+                                    <field name="escala"/>
+                                    <field name="nota"/>
+                                </tree>
+                            </field>
+                        </group>
+                        <group class="oe_subtotal_footer oe_right">
+                            <field name="total_nota"  attrs="{'invisible': [('should_hide_total_nota', '=', True)]}"/>
+                        </group>
+                        <group>
+                            <field name="anotacoes"/>
+                        </group>
+                        <group>
+                            <group>
+                                <field name="assinatura_colaborador" readonly="True"/>
+                                <field name="assinatura_avaliador" readonly="True"/>
+                            </group>
+                            <group>
+                                <field name="assinatura_responsavel" readonly="True"/>
+                            </group>
+                        </group>
+                    </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="activity_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_avaliar_funcionario" model="ir.actions.act_window">
+            <field name="name">Avaliar Funcionario</field>
+            <field name="res_model">avaliar.funcionario</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="action_avaliar_individual" model="ir.actions.act_window">
+            <field name="name">Acompanhamento Trimestral do Desempenho</field>
+            <field name="res_model">avaliacao.individual</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+
+        <record id="view_relatorio_avaliacoes_graph" model="ir.ui.view">
+            <field name="name">relatorio.avaliacoes.graph</field>
+            <field name="model">avaliar.funcionario</field>
+            <field name="arch" type="xml">
+                <graph string="Relatório de Avaliações" type="bar">
+                    <field name="comissao_list" type="dimension" />
+                    <field name="id" type="measure" operator="count" />
+                </graph>
+            </field>
+        </record>
+
+        <record id="action_view_relatorio_avaliacoes" model="ir.actions.act_window">
+            <field name="name">Relatório de Avaliações</field>
+            <field name="res_model">avaliar.funcionario</field>
+            <field name="view_mode">graph</field>
+                <field name="view_id" ref="view_relatorio_avaliacoes_graph"/>
+            <field name="domain">[]</field>
+        </record>
+
+        <menuitem id="avaliar_desempenho" name="Avaliação de Desempenho" sequence="10"/>
+        <menuitem id="menu_dashboard_id" name="Dashboard" parent="avaliar_desempenho" action="action_evaluation_dashboard" sequence="0"/>
+
+        <menuitem id="relatorio" name="Relatório" parent="avaliar_desempenho" sequence="5"/>
+        <menuitem id="relatiorio_teste" name="Relatorio das avaliacoes submetidas" parent="relatorio" sequence="1" action="action_view_relatorio_avaliacoes"/>
+
+        <menuitem id="config" name="Configurações" parent="avaliar_desempenho" sequence="6"/>
+
+        <menuitem id="templete_avalia" name="Template Competência por Avaliar" parent="config" sequence="1" action="action_avaliar"/>
+        <menuitem id="templete_teste_avalia" name="Template Tipo de Competência" parent="config" sequence="2" action="action_template"/>
+        <menuitem id="templete_comissao" name="Template Comissao Avaliadora" parent="config" sequence="3" action="action_comissao_template"/>
+
+        <menuitem id="avaliar" name="Avaliar" parent="avaliar_desempenho" sequence="3"/>
+        <menuitem id="avalia" name="Avaliação de desempenho" parent="avaliar" sequence="1" action="action_avaliar_funcionario"/>
+        <menuitem id="avalia_ind" name="Acompanhamento Trimestral do Desempenho" parent="avaliar" sequence="2" action="action_avaliar_individual"/>
+
+        <menuitem id="aproved" name="Aprovar" parent="avaliar_desempenho" sequence="4"/>
+        <menuitem id="aprovar" name="Aprovados" parent="aproved" sequence="1" action="action_avaliar_funcionario_aprovar"/>
+    </data>
+</odoo>

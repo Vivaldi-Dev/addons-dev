@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<template xml:space="preserve">
+    <t t-name="relatorio.jstempate">
+        <div class="alert alert-primary">
+            <h3 class="js_template text-black">Js aqui</h3>
+            <h1 class="text-black">sdhfjkdshfkjdshfjkdshfjkhdsjkfhjkdsh</h1>
+            <h1 class="text-black">jdkhfgjkdhgjkldfhjgshfsjkldghkjfl;dshgk;jfsdh</h1>
+        </div>
+    </t>
+</template>

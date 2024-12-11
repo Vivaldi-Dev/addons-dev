@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_subconta_subconta,subconta,model_subconta_subconta,,1,1,1,1
+access_subcontaitem_subcontaitem,subcontaitem,model_subcontaitem_subcontaitem,,1,1,1,1
+access_sequence_sequence,sequence,model_sequence_sequence,,1,1,1,1
+
+
+

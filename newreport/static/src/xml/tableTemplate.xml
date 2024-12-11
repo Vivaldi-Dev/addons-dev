@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<template>
+    <t t-name="Tablerender">
+
+            <div class="container-fluid mt-5">
+                <button id="toggleDateRange" class="btn btn-secondary mb-3">
+                    <img class="img-custom" src="/newreport/static/src/img/calendar.png" alt=""/>
+                </button>
+
+                <div class="date-range mb-3 w-25" id="dateRangeInputs">
+                    <label for="startDate" class="form-label">Data Inicial:</label>
+                    <input type="date" id="startDate" class="form-control mb-2"/>
+                    <label for="endDate" class="form-label">Data Final:</label>
+                    <input type="date" id="endDate" class="form-control"/>
+                    <button class="mt-2 btn btn-primary rounded">Aplicar</button>
+                </div>
+
+                <div>
+                    <table class="table table-responsive text-center text-capitalize clickable-table">
+                        <thead>
+                            <tr class="table-dark table-active text-uppercase text-white">
+                                <th>Descrição</th>
+                                <th>Código</th>
+                                <th>Saldo Atual</th>
+                                <th>Ano</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody1"></tbody>
+                        <thead>
+                            <tr class="table-dark table-active text-uppercase text-white">
+                                <th>Descrição</th>
+                                <th>Código</th>
+                                <th>Saldo Atual</th>
+                                <th>Ano</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody2"></tbody>
+                        <tbody id="tableBody3"></tbody>
+                    </table>
+                </div>
+
+                <style>
+                    .table-responsive {
+                    display: inline-table !important;
+                    }
+
+                    .img-custom {
+                    width: 25px;
+                    }
+                    .table-bordered th, .table-bordered td {
+                    border: none;
+                    }
+                    table th, .table td {
+                    border: none;
+                    }
+
+                    .table tbody + tbody {
+                    border-top: 2px solid #000;
+                    }
+                </style>
+            </div>
+
+        </t>
+
+
+</template>

@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_company_info,company,model_company_info,,1,1,1,1
+access_hr_payroll,hr,model_hr_payroll,,1,1,1,1

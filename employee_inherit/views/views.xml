@@ -1,0 +1,38 @@
+<odoo>
+    <!--    <record id="view_employee_form_inherit" model="ir.ui.view">-->
+    <!--        <field name="name">hr.employee.form.inherit</field>-->
+    <!--        <field name="model">hr.employee</field>-->
+    <!--        <field name="inherit_id" ref="hr.view_employee_form"/>-->
+    <!--        <field name="arch" type="xml">-->
+
+    <!--            <xpath expr="//div[@id='o_work_employee_container']/div[@id='o_work_employee_main']"-->
+    <!--                   position="inside">-->
+    <!--                <group>-->
+    <!--                    <field name="x_nuit" string="NUIT"/>-->
+    <!--                    <field name="x_inss" string="INSS"/>-->
+    <!--                </group>-->
+
+    <!--            </xpath>-->
+    <!--        </field>-->
+    <!--    </record>-->
+
+    <record id="view_employee_form_inherit" model="ir.ui.view">
+        <field name="name">hr.employee.form.inherit</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//notebook" position="inside">
+                <page string="Informações Fiscais">
+                    <group>
+                        <field name="x_nuit" string="NUIT"/>
+                        <field name="x_inss" string="INSS"/>
+                    </group>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+
+</odoo>

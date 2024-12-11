@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_recibo_recibo,recibo,model_recibo_recibo,,1,1,1,1
+access_folhapagamento_individual_report,folhapagamento,model_folhapagamento_individual_report,,1,1,1,1
+

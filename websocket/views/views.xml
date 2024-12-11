@@ -1,0 +1,50 @@
+<odoo>
+
+
+    <record model="ir.ui.view" id="websocketform">
+        <field name="name">websocket.form</field>
+        <field name="model">websocket.websocket</field>
+        <field name="arch" type="xml">
+            <form string="websocket">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="state"/>
+                        <field name="state"/>
+                        <field name="description"/>
+                    </group>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record model="ir.ui.view" id="websocketlist">
+        <field name="name">websocket list</field>
+        <field name="model">websocket.websocket</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="state"/>
+                <field name="state"/>
+                <field name="description"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_websocket" model="ir.actions.act_window">
+        <field name="name">Recibo de Pagamento</field>
+        <field name="res_model">websocket.websocket</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Sem dados adicionados ainda
+            </p>
+        </field>
+    </record>
+
+    <menuitem name="websocket" id="websocket_menu"
+              web_icon="folhapagamento,static/description/icon.png"
+              action="action_websocket" sequence="60"/>
+
+</odoo>

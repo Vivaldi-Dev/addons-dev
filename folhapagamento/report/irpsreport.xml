@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <template id="folhapagamento_report_ins">
+        <t t-call="web.basic_layout">
+
+
+            <div style="font-family: Arial, sans-serif; margin: 0; padding: 0; width: 100%; max-width: 1200px; margin: 0 auto;">
+                <header style="text-align: center; margin-bottom: 20px;">
+                    <div style="text-align: center; margin-bottom:5px; ">
+                        <img src="/folhapagamento/static/img/Emblem_of_Mozambique.svg.png" alt="Logotipo" style="max-height: 80px;"/>
+                    </div>
+                    <div>
+                        <h1 style="margin: 0;">REPÚBLICA DE MOÇAMBIQUE</h1>
+                        <h2 style="margin: 0;">INSTITUTO NACIONAL DE SEGURANÇA SOCIAL</h2>
+                        <p style="font-size: 12px; margin: 10px 0;">
+                            Esta relação deve ser entregue do dia 1 a 10 do mês seguinte.
+                            <br/>
+                            Leia com atenção as indicações do verso.
+                        </p>
+                    </div>
+                </header>
+
+                <section style="display: flex; justify-content: space-between; margin: 20px 0;">
+                    <div>
+                        <p style="margin: 5px 0; font-size: 12px;">Data de entrada na região:</p>
+                        <p style="margin: 5px 0; font-size: 12px;">Atividade:</p>
+                        <p style="margin: 5px 0; font-size: 12px;">Contribuinte N.º: 904519108</p>
+                    </div>
+                    <div>
+                        <p style="margin: 5px 0; font-size: 12px;">Nome:
+                            <span>Namula</span>
+                        </p>
+                        <p style="margin: 5px 0; font-size: 12px;">Morada: ____________________</p>
+                        <p style="margin: 5px 0; font-size: 12px;">Localidade: _________________</p>
+                        <p style="margin: 5px 0; font-size: 12px;">Caixa Postal: _______________</p>
+                        <p style="margin: 5px 0; font-size: 12px;">Telefone: __________________</p>
+                    </div>
+                </section>
+
+                <section style="margin: 20px 0;">
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <thead>
+                            <tr>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Número
+                                </th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Beneficiários<br/>(Nomes completos)
+                                </th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Data de Nascimento<br/>(Dia/Mês/Ano)
+                                </th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Dias Trabalhados
+                                </th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Rem. Diversas<br/>(MT)
+                                </th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Comissões<br/>(MT)
+                                </th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Subsídios
+                                </th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Grupo de Escala
+                                </th>
+                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Observações
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    1
+                                </td>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Adriano Bernardo
+                                </td>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    27/11/1987
+                                </td>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    28
+                                </td>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    1,199.65
+                                </td>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    5,350.00
+                                </td>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
+                                    Técnico
+                                </td>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;"></td>
+                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;"></td>
+                            </tr>
+                            <!-- Adicione mais linhas conforme necessário -->
+                        </tbody>
+                    </table>
+                </section>
+
+                <footer style="display: flex; justify-content: space-between; margin: 20px 0;">
+                    <div style="width: 48%; font-size: 12px;">
+                        <p>CALCULO DAS CONTRIBUIÇÕES A DEPOSITAR</p>
+                        <p>Total das colunas 5/6/7: 4,112.92 MT</p>
+                        <p>Total a depositar: 4,112.92 MT</p>
+                    </div>
+                    <div style="width: 48%; font-size: 12px;">
+                        <p>Assinatura e carimbo:</p>
+                        <p>______________________</p>
+                    </div>
+                </footer>
+
+                <div style="font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; margin-top:100px; margin: 0;">
+                    <div style="border: 1px solid black; width: 90%; max-width: 900px;">
+                        <div style="text-align: center; font-size: 14px; font-weight: bold; border-bottom: 1px solid black; padding: 5px 0;">
+                            A PREENCHER PELA ENTIDADE EMPREGADORA
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <div style="width: 50%; border-right: 1px solid black; padding: 10px;">
+                                <p style="font-size: 12px; margin: 15px 0;">
+                                    <span style="border-bottom: 1px solid black; display: inline-block; width: 100px;"></span>
+                                    ,
+                                    <span style="border-bottom: 1px solid black; display: inline-block; width: 20px;">
+                                        6
+                                    </span>
+                                    de
+                                    <span style="border-bottom: 1px solid black; display: inline-block; width: 70px;">
+                                        Julho
+                                    </span>
+                                    de
+                                    <span style="border-bottom: 1px solid black; display: inline-block; width: 50px;">
+                                        2021
+                                    </span>
+                                </p>
+                                <p style="font-size: 12px; text-align: center;">(Assinatura e carimbo)</p>
+                            </div>
+                            <div style="width: 50%; padding: 10px;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="border-bottom: 1px solid black; font-size: 12px; padding: 5px;">7%
+                                            S/Total Pago
+                                        </td>
+                                        <td style="border-bottom: 1px solid black; font-size: 12px; text-align: right; padding: 5px;">
+                                            4,418.22 MT
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border-bottom: 1px solid black; font-size: 12px; padding: 5px;">
+                                            (Totais das colunas 5/6/7)
+                                        </td>
+                                        <td style="border-bottom: 1px solid black; font-size: 12px; text-align: right; padding: 5px;">
+                                            63,117.36 MT
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border-bottom: 1px solid black; font-size: 12px; padding: 5px;">
+                                            Arredondamento
+                                        </td>
+                                        <td style="border-bottom: 1px solid black; font-size: 12px; text-align: right; padding: 5px;">
+                                            0.00 MT
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border-bottom: 2px solid black; font-size: 12px; font-weight: bold; padding: 5px;">
+                                            Total a depositar
+                                        </td>
+                                        <td style="border-bottom: 2px solid black; font-size: 12px; font-weight: bold; text-align: right; padding: 5px;">
+                                            4,418.22 MT
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </t>
+    </template>
+</odoo>

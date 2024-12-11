@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <template id="folhapagamento_report_template">
+
+        <t t-call="web.basic_layout">
+            <style>
+                @page {
+                size: A4 landscape;
+                margin: 20mm;
+                }
+            </style>
+            <t t-foreach="docs" t-as="doc">
+
+                <table class="table" style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <!-- Dirección -->
+                        <td style="width: 40%; border: 1px solid black; padding: 10px; font-size: 12px;">
+                            <p class="mb-0">Av. Base N`Tchinga nº 319</p>
+                            <p>Bairro da Coop, Maputo – Mozambique</p>
+                        </td>
+
+                        <!-- Información de la Empresa -->
+                        <td style="width: 30%; border: 1px solid black; padding: 10px; text-align: center; font-size: 12px;">
+                            <p class="mb-0" style="font-weight: bold;">Empresa:
+                                <span t-esc="doc.company_id.name"/>
+                            </p>
+                            <t t-if="doc.departamento_id">
+                                <p class="mb-0" style="font-weight: italic;">Departamento:
+                                    <span t-esc="doc.departamento_id.name"/>
+                                </p>
+
+                            </t>
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="font-size: 20px; font-weight: bold; color: #333;">Folha de Pagamento</h2>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-family: Arial, sans-serif; border: 1px solid #000;">
+                    <thead>
+                        <tr style="background-color: #f2f2f2; text-align: center; border: 1px solid #000;">
+                            <th style="width: 5%; border: 1px solid #000; padding: 2px;">#</th>
+                            <th style="border: 1px solid #000; padding: 2px; font-size: 10px;">Nome do
+                                Funcionário
+                            </th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Função</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Venc Base</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Incentivo</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">H.E</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Total Rem</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">INSS</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">IRPS</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Atrasos</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Faltas Dias</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Emprest</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Fundo Funebre</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Diversos</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">Total Desc</th>
+                            <th style="border: 1px solid #000; padding: 2px;font-size: 10px;">A Receber</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-set="counter" t-value="0"/>
+                        <t t-set="total_venc_base" t-value="0"/>
+                        <t t-set="total_incentivo" t-value="0"/>
+                        <t t-set="total_he" t-value="0"/>
+                        <t t-set="total_rem" t-value="0"/>
+                        <t t-set="total_inss" t-value="0"/>
+                        <t t-set="total_irps" t-value="0"/>
+                        <t t-set="total_atrasos" t-value="0"/>
+                        <t t-set="total_faltas" t-value="0"/>
+                        <t t-set="total_emprest" t-value="0"/>
+                        <t t-set="total_fundo_funebre" t-value="0"/>
+                        <t t-set="total_diversos" t-value="0"/>
+                        <t t-set="total_desc" t-value="0"/>
+                        <t t-set="total_receber" t-value="0"/>
+
+                        <tr t-foreach="sorted(doc.aggregated_salary_rule_lines, key=lambda line: line.employee_id.name)"
+                            t-as="line" style="border: 1px solid #000;">
+
+                            <t t-set="counter" t-value="counter + 1"/>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000; font-size: 10px;">
+                                <t t-esc="counter"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px;">
+                                <t t-esc="line.employee_id.name"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px;">
+                                <t t-esc="line.job_position"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.basic_amount, 2)"/>
+                                <t t-set="total_venc_base" t-value="total_venc_base + line.basic_amount"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.inc_amount, 2)"/>
+                                <t t-set="total_incentivo" t-value="total_incentivo + line.inc_amount"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.horasextrasc + line.horasextrascem, 2)"/>
+                                <t t-set="total_he"
+                                   t-value="total_he + (line.horasextrasc + line.horasextrascem)"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.totalderemuneracoes, 2)"/>
+                                <t t-set="total_rem" t-value="total_rem + line.totalderemuneracoes"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.inss_amount, 2)"/>
+                                <t t-set="total_inss" t-value="total_inss + line.inss_amount"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.irps_amout, 2)"/>
+                                <t t-set="total_irps" t-value="total_irps + line.irps_amout"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.descontoatraso, 2)"/>
+                                <t t-set="total_atrasos" t-value="total_atrasos + line.descontoatraso"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.descotofaltasdias, 2)"/>
+                                <t t-set="total_faltas" t-value="total_faltas + line.descotofaltasdias"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.emprestimos, 2)"/>
+                                <t t-set="total_emprest" t-value="total_emprest + line.emprestimos"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.fundofunebre, 2)"/>
+                                <t t-set="total_fundo_funebre"
+                                   t-value="total_fundo_funebre + line.fundofunebre"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.outrosdescontos, 2)"/>
+                                <t t-set="total_diversos" t-value="total_diversos + line.outrosdescontos"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.totaldedescontos, 2)"/>
+                                <t t-set="total_desc" t-value="total_desc + line.totaldedescontos"/>
+                            </td>
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
+                                <t t-esc="round(line.net_amount, 2)"/>
+                                <t t-set="total_receber" t-value="total_receber + line.net_amount"/>
+
+                            </td>
+                        </tr>
+                        <!-- Linha de totais -->
+                        <!-- Linha de totais -->
+                        <tr style="font-weight: bold; background-color: #f2f2f2; text-align: center; border: 1px solid #000;">
+                            <td colspan="3" style="border: 1px solid #000;">Total</td>
+                            <td style="border: 1px solid #000; font-size: 10px; padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_venc_base, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_incentivo, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_he, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_rem, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_inss, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_irps, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_atrasos, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_faltas, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_emprest, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_fundo_funebre, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_diversos, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_desc, 2)"/>
+                            </td>
+                            <td style="border: 1px solid #000; font-size: 10px;  padding: 3px; white-space: nowrap;">
+                                <t t-esc="round(total_receber, 2)"/>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+                <div style="margin-top: 40px;">
+                    <div style="width: 48%; float: left; text-align: center;">
+                        <label style="display: block; border-bottom: 1px solid #000; padding: 2px; font-size: 10px;"/>
+                        <label style=" font-size: 10px;">(Aprovado por)</label>
+                    </div>
+                    <div style="width: 48%; float: right; text-align: center;">
+                        <label style="display: block; border-bottom: 1px solid #000; padding: 2px; font-size: 10px;"/>
+                        <label style=" font-size: 10px;">(O Dep. Rec. Humanos)</label>
+                    </div>
+                </div>
+
+            </t>
+        </t>
+    </template>
+</odoo>
+
+
+
+

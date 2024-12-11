@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<odoo>
+    <report
+        id="folhapagamento_report"
+        string="Folha de Pagamento"
+        model="folhapagamento.folhapagamento"
+        report_type="qweb-pdf"
+        name="folhapagamento.folhapagamento_report_template"
+        file="folhapagamento.folhapagamento_report_template"
+        print_report_name="'Folha de Pagamento - %s' % (object.name or 'Relatório')"
+
+    />
+
+    <report
+        id="folhapagamento_report_irps"
+        string="IRPS"
+        model="folhapagamento.folhapagamento"
+        report_type="qweb-pdf"
+        name="folhapagamento.folhapagamento_report_IRPS"
+        file="folhapagamento.folhapagamento_report_IRPS"
+        print_report_name="'Folha de Pagamento - %s' % (object.name or 'Relatório')"
+    />
+
+     <report
+        id="folhapagamento_report_inss"
+        string="INSS"
+        model="folhapagamento.folhapagamento"
+        report_type="qweb-pdf"
+        name="folhapagamento.folhapagamento_report_ins"
+        file="folhapagamento.folhapagamento_report_ins"
+        print_report_name="'Folha de Pagamento - %s' % (object.name or 'Relatório')"
+    />
+
+    <report
+        id="folhapagamento_report_excel"
+        string="Folha de Pagamento excel"
+        model="folhapagamento.folhapagamento"
+        report_type="xlsx"
+        name="folhapagamento.folhapagamento_report_xls"
+        file="folhapagamento.folhapagamento_report_xls"
+        print_report_name="'Folha de Pagamento - %s' % (object.name or 'Relatório')"
+    />
+</odoo>

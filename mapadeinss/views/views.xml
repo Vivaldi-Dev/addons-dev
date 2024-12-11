@@ -1,0 +1,87 @@
+<odoo>
+
+    <record id="view_payroll" model="ir.ui.view">
+        <field name="name">payroll.pagamento.form</field>
+        <field name="model">payroll.map</field>
+        <field name="arch" type="xml">
+            <form string="Folha de Pagamento">
+                <header>
+                    <field name="state" widget="statusbar" options="{'clickable': '1'}"/>
+                </header>
+
+                <sheet>
+                    <group>
+                        <field name="description"/>
+                        <field name="period"/>
+                        <field name="company"/>
+                    </group>
+
+                    <notebook>
+
+                        <page string="Detalhes por Categoria de Regra Salarial">
+                            <field name="aggregated_lines">
+                                <tree string="Detalhes Agregados de Regra Salarial">
+                                    <field name="codigo_funcionario"/>
+                                    <field name="employee_id"/>
+                                    <field name="inss_amout" string="INSS"/>
+                                    <field name="numero_contribuinte"/>
+                                    <field name="numero_beneficiario"/>
+                                </tree>
+                            </field>
+                        </page>
+
+                    </notebook>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_mapa_tree" model="ir.ui.view">
+        <field name="name">mapa.pagamento.tree</field>
+        <field name="model">payroll.map</field>
+        <field name="arch" type="xml">
+            <tree string="Folha de Pagamento">
+                <field name="description"/>
+                <field name="period"/>
+            </tree>
+        </field>
+    </record>
+
+    <!--    <record id="action_irps" model="ir.actions.client">-->
+    <!--        <field name="name">Mapa INSS</field>-->
+    <!--        <field name="tag">irps</field>-->
+    <!--        <field name="target">main</field>-->
+    <!--    </record>-->
+
+    <record id="payroll_mapa" model="ir.actions.act_window">
+        <field name="name">INSS</field>
+        <field name="res_model">payroll.map</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Sem dados adicionados ainda
+            </p>
+        </field>
+    </record>
+
+    <menuitem name="Mapa de INSS" id="INSS_menu"
+              web_icon="mapa,static/description/icon.png"
+              action="payroll_mapa" sequence="60"/>
+
+
+    <menuitem
+            name="Report" id="reports"
+            sequence="110"
+            parent="hr_payroll_community.menu_hr_payroll_community_root"
+    />
+
+    <menuitem
+            name="folhapagamento"
+            id="folhapamento"
+            action="payroll_mapa"
+            parent="reports"
+    />
+
+
+</odoo>

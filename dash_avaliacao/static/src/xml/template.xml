@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="eventManagements">
+        <section class="section event_dashboard">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-12 mb-4 mt32 mb16">
+                        <div class="row">
+                            <div class="col-12 col-sm-12 col-md-5">
+                                <h4 class="section-header">Avaliacao de Desempenho</h4>
+                            </div>
+                        </div>
+                        <hr/>
+                    </div>
+                    <div class="col-md-4 col-lg-4 col-sm-6 total-nova">
+                        <div class="card card-xl-stretch mb-xl-8">
+                            <div class="card-body p-0">
+                                <div class="d-flex flex-stack card-p flex-grow-1">
+                                    <span class="symbol symbol-50px me-2">
+                                        <span class="symbol-label bg-light-general">
+                                            <span class="fa fa-plus-circle" aria-hidden="true" style="color: green; font-size: 24px;"> </span>
+                                        </span>
+                                    </span>
+                                    <div class="d-flex flex-column text-end">
+                                        <span class="text-dark fw-bolder fs-2" id="total_nova">0</span>
+                                        <span class="text-muted fw-bold mt-1">Avaliação de Desempenho Novas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-lg-4 col-sm-6 total-espera">
+                        <div class="card card-xl-stretch mb-xl-8">
+                            <div class="card-body p-0">
+                                <div class="d-flex flex-stack card-p flex-grow-1">
+                                    <span class="symbol symbol-50px me-2">
+                                        <span class="symbol-label bg-light-general">
+                                            <span class="fa fa-check-square" aria-hidden="true" style="color: purple; font-size: 24px;"> </span>
+                                        </span>
+                                    </span>
+                                    <div class="d-flex flex-column text-end">
+                                        <span class="text-dark fw-bolder fs-2" id="total_espera">0</span>
+                                        <span class="text-muted fw-bold mt-1">Avaliacoes de Desempenho Submetidas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-lg-4 col-sm-6 total-aprovar">
+                        <div class="card card-xl-stretch mb-xl-8">
+                            <div class="card-body p-0">
+                                <div class="d-flex flex-stack card-p flex-grow-1">
+                                    <span class="symbol symbol-50px me-2">
+                                        <span class="symbol-label bg-light-general">
+                                            <span class="fa fa-check-circle" aria-hidden="true" style="color: green; font-size: 24px;"> </span>
+                                        </span>
+                                    </span>
+                                    <div class="d-flex flex-column text-end">
+                                        <span class="text-dark fw-bolder fs-2" id="total_aprovar">0</span>
+                                        <span class="text-muted fw-bold mt-1">Avaliacoes por Aprovar</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-lg-4 col-sm-6 total-concluir mt-3">
+                        <div class="card card-xl-stretch mb-xl-8">
+                            <div class="card-body p-0">
+                                <div class="d-flex flex-stack card-p flex-grow-1">
+                                    <span class="symbol symbol-50px me-2">
+                                        <span class="symbol-label bg-light-general">
+                                            <span class="fa fa-check" aria-hidden="true" style="color: green; font-size: 24px;"> </span>
+                                        </span>
+                                    </span>
+                                    <div class="d-flex flex-column text-end">
+                                        <span class="text-dark fw-bolder fs-2" id="total_concluir">0</span>
+                                        <span class="text-muted fw-bold mt-1">Avaliacoes Concluidas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="col-md-4 col-lg-4 col-sm-6 total-cancelar mt-3">
+                        <div class="card card-xl-stretch mb-xl-8">
+                            <div class="card-body p-0">
+                                <div class="d-flex flex-stack card-p flex-grow-1">
+                                    <span class="symbol symbol-50px me-2">
+                                        <span class="symbol-label bg-light-general">
+                                            <span class="fa fa-ban" aria-hidden="true" style="color: orange; font-size: 24px;"> </span>
+                                        </span>
+                                    </span>
+                                    <div class="d-flex flex-column text-end">
+                                        <span class="text-dark fw-bolder fs-2" id="total_cancelar">0</span>
+                                        <span class="text-muted fw-bold mt-1">Avaliacoes Canceladas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-lg-4 col-sm-6 total-rejeitada mt-3">
+                        <div class="card card-xl-stretch mb-xl-8">
+                            <div class="card-body p-0">
+                                <div class="d-flex flex-stack card-p flex-grow-1">
+                                    <span class="symbol symbol-50px me-2">
+                                        <span class="symbol-label bg-light-general">
+                                            <span class="fa fa-times" aria-hidden="true" style="color: red; font-size: 24px;"> </span>
+                                        </span>
+                                    </span>
+                                    <div class="d-flex flex-column text-end">
+                                        <span class="text-dark fw-bolder fs-2" id="total_rejeitar">0</span>
+                                        <span class="text-muted fw-bold mt-1">Avaliacoes Rejeitadas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 departmentChart">
+                            <div class="shadow-sm border m-2 p-4 bg-white">
+                                <div class="row">
+                                    <div class="col-md-6 m-0 p-0 mt-3">
+                                        <div class="shadow-sm border m-2 p-4 bg-white">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <h3 class="text-primary fw-bold">Registros de Avaliacao de Desempenho Por Departamento</h3>
+                                            </div>
+                                            <canvas id="departmentChart" style="height: 300px;"> </canvas>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6 m-0 p-0 mt-3">
+                                        <div class="shadow-sm border m-2 p-4 bg-white">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <h3 class="text-primary fw-bold">Registros de Avaliacao de Desempenho Por Comissao</h3>
+                                            </div>
+                                            <canvas id="comissaoChart" style="height: 300px;"> </canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12 mt-3">
+                                    <div class="shadow-sm border m-2 p-4 bg-white">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <h3 class="text-primary fw-bold">Registros de Avaliacao de Desempenho Por Meses</h3>
+                                        </div>
+                                        <canvas id="monthlyChart" style="height: 300px;"> </canvas>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </t>
+</templates>
+

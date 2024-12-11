@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mapairps_mapairps,mapairps,model_mapairps_mapairps,,1,1,1,1
+access_funcionario_model,funcionario,model_funcionario_model,,1,1,1,1

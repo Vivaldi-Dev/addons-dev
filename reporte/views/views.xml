@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+
+    <record id="view_subconta_item_form" model="ir.ui.view">
+        <field name="name">subconta.item.form</field>
+        <field name="model">subconta.subconta</field>
+        <field name="arch" type="xml">
+            <form string="Item da Subconta">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="balance"/>
+                        </group>
+                        <group>
+                            <field name="account_id"/>
+                            <field name="parent_account_computed_balance"/>
+                            <field name="operation_type"/>
+                            <field name="code" readonly="1"/>
+                            <field name="order_number" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Detailed Operations">
+                            <field name="item_ids">
+                                <tree editable="bottom">
+                                    <field name="account_id"/>
+                                    <field name="name"/>
+                                    <field name="amount"/>
+                                    <field name="subconta_id"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_tree_sub" model="ir.ui.view">
+        <field name="name">contract.menu.tree</field>
+        <field name="model">subconta.subconta</field>
+        <field name="arch" type="xml">
+            <tree string="Menus ">
+                <field name="name"/>
+                <field name="account_id"/>
+                <field name="balance"/>
+                <field name="item_ids"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_owlss" model="ir.actions.client">
+        <field name="name">reportes</field>
+        <field name="tag">reporte</field>
+        <field name="target">main</field>
+    </record>
+
+    <record id="action_menu" model="ir.actions.act_window">
+        <field name="name">Relatorio</field>
+        <field name="res_model">subconta.subconta</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No data add yet
+            </p>
+        </field>
+    </record>
+
+    <menuitem name="Relatorio" id="report_menu" sequence="30" action="action_owlss"/>
+
+    <menuitem name="Config-Relatorio"
+              id="reporte"
+              parent="report_menu"
+              sequence="0"
+              action="action_menu"/>
+
+</odoo>

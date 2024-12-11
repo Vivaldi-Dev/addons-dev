@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template xml:space="preserve" id="dash_avaliacao.DashAvaliacao">
+<!--        <t t-name="dash_avaliacao.DashAvaliacao">-->
+<!--            <h1>Teste Dashboard</h1>-->
+<!--        </t>-->
+    </template>
+</odoo>

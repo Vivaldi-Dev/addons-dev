@@ -1,0 +1,137 @@
+<odoo>
+    <record id="view_relatorio_item_form" model="ir.ui.view">
+        <field name="name">relatorio.form</field>
+        <field name="model">relatorio.relatorio</field>
+        <field name="arch" type="xml">
+            <form string="Relatorio">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="total_balance"/>
+                            <field name="create_date"/>
+                            <field name="descricao"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Detailed Operations">
+                            <field name="subconta_ids">
+                                <tree editable="bottom">
+                                    <field name="name"/>
+                                    <field name="operation_type"/>
+                                    <field name="saldo"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_tree_report" model="ir.ui.view">
+        <field name="name">relatorio.relatorio.tree</field>
+        <field name="model">relatorio.relatorio</field>
+        <field name="arch" type="xml">
+            <tree string="Relatórios">
+                <field name="name"/>
+                <field name="subconta_ids"/>
+                <field name="total_balance"/>
+                <field name="create_date"/>
+            </tree>
+        </field>
+    </record>
+
+
+    <record id="view_subconta_item_form" model="ir.ui.view">
+        <field name="name">subconta.item.form</field>
+        <field name="model">subconta.subconta</field>
+        <field name="arch" type="xml">
+            <form string="Item da Subconta">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                        </group>
+                        <group>
+                            <field name="account_id"/>
+                            <field name="saldo"/>
+                            <field name="operation_type"/>
+                            <field name="code"/>
+                        </group>
+                    </group>
+
+                    <field name="saved" invisible="1"/>
+                    <notebook attrs="{'invisible': [('saved', '=', False)]}">
+                        <page string="Detailed Operations">
+                            <field name="item_ids">
+                                <tree editable="bottom">
+                                    <field name="account_id"/>
+                                    <field name="name"/>
+                                    <field name="amount"/>
+                                    <field name="subconta_id"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_tree_sub" model="ir.ui.view">
+        <field name="name">contract.menu.tree</field>
+        <field name="model">subconta.subconta</field>
+        <field name="arch" type="xml">
+            <tree string="Menus">
+                <field name="name"/>
+                <field name="account_id"/>
+                <field name="saldo"/>
+                <field name="item_ids"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_menu" model="ir.actions.act_window">
+        <field name="name">Sub-Contas</field>
+        <field name="res_model">subconta.subconta</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No data add yet
+            </p>
+        </field>
+    </record>
+
+    <record id="report_menu_tempate" model="ir.actions.act_window">
+        <field name="name">Relatorio</field>
+        <field name="res_model">relatorio.relatorio</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('company_id', 'in', allowed_company_ids)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No Report add yet
+            </p>
+        </field>
+    </record>
+
+    <record id="action_owls" model="ir.actions.client">
+        <field name="name">jsreport</field>
+        <field name="tag">reportar</field>
+        <field name="target">main</field>
+    </record>
+
+    <menuitem name="DRE" id="report_menu" web_icon="jsreport,static/description/icon.png" action="action_owls"
+              sequence="20"/>
+
+    <menuitem name="Config-Relatorio" id="reporte" parent="report_menu" sequence="0"/>
+
+    <menuitem name="Sub-contas" id="report_template_sub_contas" parent="reporte" sequence="0" action="action_menu"/>
+
+    <menuitem name="Relatorio" id="report_template_relatorio" parent="reporte" sequence="1"
+              action="report_menu_tempate"/>
+
+</odoo>

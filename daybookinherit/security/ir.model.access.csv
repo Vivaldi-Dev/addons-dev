@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dynamic_accounts_report_dynamic_accounts_report,dynamic_accounts_report,model_dynamic_accounts_report_dynamic_accounts_report,,1,1,1,1
+access_day_book_dday_book,day_book,model_day_book_day_book,,1,1,1,1

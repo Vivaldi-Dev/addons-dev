@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_folhapagamento_folhapagamento,folhapagamento,model_folhapagamento_folhapagamento,,1,1,1,1
+access_folhapagamento_aggregated_line,folhapagamento,model_folhapagamento_aggregated_line,,1,1,1,1
+
+
+
