@@ -85,23 +85,24 @@ class HrPayslip(models.Model):
         res = []
 
         structure_ids = contracts.get_all_structures()
-
         rule_ids = self.env['hr.payroll.structure'].browse(structure_ids).get_all_rules()
-
         sorted_rule_ids = [id for id, sequence in sorted(rule_ids, key=lambda x: x[1])]
 
         inputs = self.env['hr.salary.rule'].browse(sorted_rule_ids).mapped('input_ids')
 
+        faltas_por_funcionario = self.look_for_fouls()
+
         print(f"Inputs kkkkkkkkkkkk: {inputs}")
 
         for contract in contracts:
-            for input in inputs:
+            faltas = sum(1 for falta in faltas_por_funcionario if falta['id'] == contract.employee_id.id)
 
+            for input in inputs:
                 if input.code == 'TO_F_D':
                     input_data = {
                         'name': input.name,
                         'code': input.code,
-                        'amount': 2,
+                        'amount': faltas,
                         'contract_id': contract.id,
                     }
                 else:
@@ -116,6 +117,56 @@ class HrPayslip(models.Model):
 
         print(f"Input Line Data kkkkkkk: {res}")
         return res
+
+    def look_for_fouls(self):
+
+        busca = self.env['hr.leave'].sudo().search([])
+        dados = []
+        for dado in busca:
+            dados.append({
+                'id': dado.employee_id.id,
+                'name': dado.employee_id.name,
+                'date_from': dado.date_from.strftime('%Y-%m-%d'),
+                'date_to': dado.date_to.strftime('%Y-%m-%d'),
+            })
+        return dados
+
+    def daily_delays_check(self):
+        records = self.env['hr.attendance'].sudo().search([])
+
+        delays_info = []
+
+        for row in records:
+            check_in = row.check_in
+            if not check_in:
+                continue
+            day_of_week = check_in.weekday()
+
+            resource_calendar = row.row.employee_id.resource_calendar_id
+            if not resource_calendar:
+                continue
+
+            attendance = next(
+                (att for att in resource_calendar.attendance_ids if int(att.dayofweek) == day_of_week),
+                None
+            )
+
+            if not attendance:
+                continue
+
+            check_in_time = check_in.time()
+            expected_time =(datetime.min + timedelta(hours=attendance.hour_from)).time()
+
+            is_late = check_in_time > expected_time
+
+            delays_info.append({
+                'id': row.id,
+                'employee_name': row.employee_id.name,
+                'check_in': check_in.strftime('%H:%M'),
+                'expected_time': expected_time.strftime('%H:%M'),
+                'is_late': is_late
+            })
+
 
 
 class PayrollAbsent(models.Model):

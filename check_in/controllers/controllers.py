@@ -225,7 +225,7 @@ class CheckIn(http.Controller):
 
     @http.route('/monitoring/overview', auth='none', cors='*', csrf=False)
     def overview(self, **kw):
-        table = request.env['hr.employee'].sudo().search([('id', '=', '22')], limit=1)
+        table = request.env['hr.employee'].sudo().search([], limit=1)
         info = []
 
         for employee in table:
@@ -328,7 +328,7 @@ class CheckIn(http.Controller):
     def ausentesdays(self, **kw):
         try:
 
-            employees = request.env['hr.employee'].sudo().search([('id', '=', '20')])
+            employees = request.env['hr.employee'].sudo().search([])
             now = datetime.now()
             rcords = []
             ausentes = 0
@@ -378,3 +378,95 @@ class CheckIn(http.Controller):
                 headers=[('Content-Type', 'application/json')],
                 status=500
             )
+
+    @http.route('/dailydelays', auth='none', cors='*', csrf=False, methods=['GET'])
+    def dailydelays(self, **kw):
+
+        records = request.env['hr.attendance'].sudo().search([('id', '=' , '21')])
+
+        info = []
+
+        for row in records:
+            check_in = row.check_in.strftime('%H:%M') if row.check_in else 'N/A'
+            check_out = row.check_out.strftime('%H:%M') if row.check_out else 'N/A'
+
+            resource_calendar_data = []
+            if row.employee_id.resource_calendar_id:
+
+                attendance_data = []
+                for attendance in row.employee_id.resource_calendar_id.attendance_ids:
+                    attendance_data.append({
+                        'id': attendance.id,
+                        'name': attendance.name,
+                        'hour_from': attendance.hour_from,
+                    })
+
+                resource_calendar_data = [{
+                    'id': row.employee_id.resource_calendar_id.id,
+                    'name': row.employee_id.resource_calendar_id.name,
+                    'attendance_ids': attendance_data
+                }]
+            else:
+                resource_calendar_data = [{
+                    'id': 'N/A',
+                    'name': 'N/A',
+                    'attendance_ids': []
+                }]
+
+            info.append({
+                'id': row.id,
+                'name': row.employee_id.name,
+                'check_in': check_in,
+                'check_out': check_out,
+                'resource_calendar_id': resource_calendar_data
+            })
+
+        return werkzeug.wrappers.Response(
+            json.dumps(info),
+            headers=[('Content-Type', 'application/json')],
+            status=200
+        )
+
+    @http.route('/daily_delays_check', auth='none', cors='*', csrf=False, methods=['GET'])
+    def daily_delays_check(self, **kw):
+        records = request.env['hr.attendance'].sudo().search([])
+        delays_info = []
+
+        for row in records:
+            check_in = row.check_in
+            if not check_in:
+                continue
+
+            day_of_week = check_in.weekday()
+
+            resource_calendar = row.employee_id.resource_calendar_id
+            if not resource_calendar:
+                continue
+
+            attendance = next(
+                (att for att in resource_calendar.attendance_ids if int(att.dayofweek) == day_of_week),
+                None
+            )
+
+            if not attendance:
+                continue
+
+            check_in_time = check_in.time()
+            expected_time = (datetime.min + timedelta(hours=attendance.hour_from)).time()
+
+            is_late = check_in_time > expected_time
+
+            delays_info.append({
+                'id': row.id,
+                'employee_name': row.employee_id.name,
+                'check_in': check_in.strftime('%H:%M'),
+                'expected_time': expected_time.strftime('%H:%M'),
+                'is_late': is_late
+            })
+
+        return werkzeug.wrappers.Response(
+            json.dumps(delays_info),
+            headers=[('Content-Type', 'application/json')],
+            status=200
+        )
+
