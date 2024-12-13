@@ -44,7 +44,7 @@ class HrPayslip(models.Model):
                                                                    calendar=contract.resource_calendar_id)
             for day, hours, leave in day_leave_intervals:
                 holiday = leave.holiday_id
-                print(f"Holiday ID: {holiday.holiday_status_id}")
+                # print(f"Holiday ID: {holiday.holiday_status_id}")
                 current_leave_struct = leaves.setdefault(holiday.holiday_status_id, {
                     'name': holiday.holiday_status_id.name or _('Global Leaves'),
                     'sequence': 5,
@@ -73,7 +73,7 @@ class HrPayslip(models.Model):
                 'contract_id': contract.id,
             }
 
-            print(f"Attending data for contract {contract.id}: {attendances}")
+            # print(f"Attending data for contract {contract.id}: {attendances}")
 
             res.append(attendances)
             res.extend(leaves.values())
@@ -86,19 +86,51 @@ class HrPayslip(models.Model):
 
         structure_ids = contracts.get_all_structures()
         rule_ids = self.env['hr.payroll.structure'].browse(structure_ids).get_all_rules()
-        sorted_rule_ids = [id for id, sequence in sorted(rule_ids, key=lambda x: x[1])]
+        sorted_rule_ids = [rule_id for rule_id, _ in sorted(rule_ids, key=lambda x: x[1])]
 
         inputs = self.env['hr.salary.rule'].browse(sorted_rule_ids).mapped('input_ids')
 
-        faltas_por_funcionario = self.look_for_fouls()
+        faltas_por_funcionario = self.look_for_fouls(date_from, date_to)
+        delays_info = self.daily_delays_check(date_from, date_to)
 
-        print(f"Inputs kkkkkkkkkkkk: {inputs}")
+        # Acumular os minutos totais de atraso por funcionário
+        total_delays_by_employee = {}
 
+        # Primeiro, vamos somar os atrasos, mas não somar múltiplas vezes para o mesmo funcionário
+        for delay in delays_info:
+            employee_id = delay['id']
+            delay_minutes = delay.get('delay', 0)
+
+            # Verificando o valor de delay_minutes e como ele é acumulado
+            print(f"Funcionário {employee_id} - Atraso atual: {delay_minutes} minutos.")
+
+            # Se o funcionário já tiver atrasos registrados, somamos
+            if employee_id in total_delays_by_employee:
+                total_delays_by_employee[employee_id] += delay_minutes
+            else:
+                total_delays_by_employee[employee_id] = delay_minutes
+
+            # Verificando o valor acumulado de atraso para o funcionário
+            print(
+                f"Total de atraso acumulado para o Funcionário {employee_id}: {total_delays_by_employee[employee_id]} minutos.")
+
+        # Agora vamos processar as entradas e garantir que o atraso seja calculado corretamente
         for contract in contracts:
             faltas = sum(1 for falta in faltas_por_funcionario if falta['id'] == contract.employee_id.id)
 
+            # Obter o total de minutos de atraso do funcionário
+            total_delay_minutes = total_delays_by_employee.get(contract.employee_id.id, 0)
+            delay_amount = round(total_delay_minutes / 60, 2)  # Converter minutos para horas
+
             for input in inputs:
-                if input.code == 'TO_F_D':
+                if input.code == 'D_P_A':
+                    input_data = {
+                        'name': input.name,
+                        'code': input.code,
+                        'amount': delay_amount,
+                        'contract_id': contract.id,
+                    }
+                elif input.code == 'TO_F_D':
                     input_data = {
                         'name': input.name,
                         'code': input.code,
@@ -115,12 +147,39 @@ class HrPayslip(models.Model):
 
                 res.append(input_data)
 
-        print(f"Input Line Data kkkkkkk: {res}")
         return res
 
-    def look_for_fouls(self):
+    def look_for_fouls(self, date_from, date_to):
 
-        busca = self.env['hr.leave'].sudo().search([])
+        busca = self.env['hr.leave'].sudo().search([
+            ('date_from', '>=', date_from),
+            ('date_to', '<=', date_to),
+        ])
+
+        # print(f"Faltas encontradas: {len(busca)} registros")
+
+        dados = []
+        for dado in busca:
+
+            dados.append({
+                'id': dado.employee_id.id,
+                'name': dado.employee_id.name,
+                'date_from': dado.date_from.strftime('%Y-%m-%d'),
+                'date_to': dado.date_to.strftime('%Y-%m-%d'),
+            })
+
+        return dados
+
+    from datetime import datetime, timedelta
+
+    def look_for_fouls(self, date_from, date_to):
+        busca = self.env['hr.leave'].sudo().search([
+            ('date_from', '>=', date_from),
+            ('date_to', '<=', date_to),
+        ])
+
+        # print(f"Faltas encontradas: {len(busca)} registros")
+
         dados = []
         for dado in busca:
             dados.append({
@@ -129,20 +188,30 @@ class HrPayslip(models.Model):
                 'date_from': dado.date_from.strftime('%Y-%m-%d'),
                 'date_to': dado.date_to.strftime('%Y-%m-%d'),
             })
+
         return dados
 
-    def daily_delays_check(self):
-        records = self.env['hr.attendance'].sudo().search([])
+    @api.model
+    def daily_delays_check(self, date_from, date_to):
+        # print(
+        #     f"Iniciando o método daily_delays_check para o intervalo: {date_from} até {date_to}...")  # Verifica se o método foi chamado
+
+        records = self.env['hr.attendance'].sudo().search([
+            ('check_in', '>=', date_from),
+            ('check_in', '<=', date_to)
+        ])
 
         delays_info = []
+        total_delay_days = 0
 
         for row in records:
             check_in = row.check_in
             if not check_in:
                 continue
-            day_of_week = check_in.weekday()
 
-            resource_calendar = row.row.employee_id.resource_calendar_id
+            day_of_week = check_in.weekday()
+            resource_calendar = row.employee_id.resource_calendar_id
+
             if not resource_calendar:
                 continue
 
@@ -155,18 +224,36 @@ class HrPayslip(models.Model):
                 continue
 
             check_in_time = check_in.time()
-            expected_time =(datetime.min + timedelta(hours=attendance.hour_from)).time()
-
+            expected_time = (datetime.min + timedelta(hours=attendance.hour_from)).time()
             is_late = check_in_time > expected_time
 
+            delay_minutes = 0
+            if is_late:
+                check_in_datetime = datetime.combine(datetime.today(), check_in_time)
+                expected_datetime = datetime.combine(datetime.today(), expected_time)
+
+                delay_delta = check_in_datetime - expected_datetime
+                delay_minutes = delay_delta.total_seconds() / 60
+
+                # print(
+                #     f"Funcionário {row.employee_id.name} chegou {delay_minutes} minutos atrasado.")  # Exibe o atraso em minutos
+
+                # Se o funcionário estiver atrasado, consideramos que ele teve um dia de atraso
+                total_delay_days += 1
+
             delays_info.append({
-                'id': row.id,
+                'id': row.employee_id.id,
                 'employee_name': row.employee_id.name,
                 'check_in': check_in.strftime('%H:%M'),
                 'expected_time': expected_time.strftime('%H:%M'),
-                'is_late': is_late
+                'is_late': is_late,
+                'delay': delay_minutes
             })
 
+        # print(
+        #     f"Total de dias de atraso no intervalo {date_from} até {date_to}: {total_delay_days} dias.")  # Exibe o total de dias com atraso
+
+        return delays_info
 
 
 class PayrollAbsent(models.Model):

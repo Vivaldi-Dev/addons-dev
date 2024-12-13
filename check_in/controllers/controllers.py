@@ -456,12 +456,32 @@ class CheckIn(http.Controller):
 
             is_late = check_in_time > expected_time
 
+            delay_str = "0 min"
+            if is_late:
+
+                check_in_datetime = datetime.combine(datetime.today(), check_in_time)
+                expected_datetime = datetime.combine(datetime.today(), expected_time)
+
+                delay_delta = check_in_datetime - expected_datetime
+                delay_minutes = delay_delta.total_seconds() / 60
+
+                if delay_minutes >= 60:
+                    delay_hours = delay_minutes // 60
+                    remaining_minutes = delay_minutes % 60
+                    if remaining_minutes > 0:
+                        delay_str = f"{int(delay_hours)} h {int(remaining_minutes)} min"
+                    else:
+                        delay_str = f"{int(delay_hours)} h"
+                else:
+                    delay_str = f"{int(delay_minutes)} min"
+
             delays_info.append({
                 'id': row.id,
                 'employee_name': row.employee_id.name,
                 'check_in': check_in.strftime('%H:%M'),
                 'expected_time': expected_time.strftime('%H:%M'),
-                'is_late': is_late
+                'is_late': is_late,
+                'delay': delay_str
             })
 
         return werkzeug.wrappers.Response(
@@ -469,4 +489,6 @@ class CheckIn(http.Controller):
             headers=[('Content-Type', 'application/json')],
             status=200
         )
+
+
 
