@@ -93,34 +93,27 @@ class HrPayslip(models.Model):
         faltas_por_funcionario = self.look_for_fouls(date_from, date_to)
         delays_info = self.daily_delays_check(date_from, date_to)
 
-        # Acumular os minutos totais de atraso por funcionário
         total_delays_by_employee = {}
 
-        # Primeiro, vamos somar os atrasos, mas não somar múltiplas vezes para o mesmo funcionário
         for delay in delays_info:
             employee_id = delay['id']
             delay_minutes = delay.get('delay', 0)
 
-            # Verificando o valor de delay_minutes e como ele é acumulado
             print(f"Funcionário {employee_id} - Atraso atual: {delay_minutes} minutos.")
 
-            # Se o funcionário já tiver atrasos registrados, somamos
             if employee_id in total_delays_by_employee:
                 total_delays_by_employee[employee_id] += delay_minutes
             else:
                 total_delays_by_employee[employee_id] = delay_minutes
 
-            # Verificando o valor acumulado de atraso para o funcionário
             print(
                 f"Total de atraso acumulado para o Funcionário {employee_id}: {total_delays_by_employee[employee_id]} minutos.")
 
-        # Agora vamos processar as entradas e garantir que o atraso seja calculado corretamente
         for contract in contracts:
             faltas = sum(1 for falta in faltas_por_funcionario if falta['id'] == contract.employee_id.id)
 
-            # Obter o total de minutos de atraso do funcionário
             total_delay_minutes = total_delays_by_employee.get(contract.employee_id.id, 0)
-            delay_amount = round(total_delay_minutes / 60, 2)  # Converter minutos para horas
+            delay_amount = round(total_delay_minutes / 60, 2)
 
             for input in inputs:
                 if input.code == 'D_P_A':
@@ -250,8 +243,8 @@ class HrPayslip(models.Model):
                 'delay': delay_minutes
             })
 
-        # print(
-        #     f"Total de dias de atraso no intervalo {date_from} até {date_to}: {total_delay_days} dias.")  # Exibe o total de dias com atraso
+        print(
+            f"Total de dias de atraso no intervalo {date_from} até {date_to}: {total_delay_days} dias")  # Exibe o total de dias com atraso
 
         return delays_info
 

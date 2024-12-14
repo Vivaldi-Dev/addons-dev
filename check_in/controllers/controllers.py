@@ -5,6 +5,7 @@ import werkzeug
 import json
 from datetime import datetime, timedelta
 
+from odoo.addons.authmodel.controllers.decorators.token_required import token_required
 
 class CheckIn(http.Controller):
 
@@ -58,21 +59,43 @@ class CheckIn(http.Controller):
                 headers=[('Content-Type', 'application/json')],
                 status=500
             )
-
-    @http.route('/monitoring/presents', auth='none', cors='*', csrf=False)
+    @token_required
+    @http.route('/monitoring/presents', auth='none', cors='*', csrf=False, methods=['GET'])
     def presentes(self, **kw):
         try:
-            # Obter a data atual sem a parte de hora, minuto e segundo
-            today = datetime.today().date()
+            body = request.httprequest.get_data(as_text=True)
+            if not body:
+                return werkzeug.wrappers.Response(
+                    json.dumps({'error': 'Requisição inválida. O corpo deve conter JSON.'}),
+                    headers=[('Content-Type', 'application/json')],
+                    status=400
+                )
 
-            # Buscar os empregados
-            employees = request.env['hr.employee'].sudo().search([])
+            try:
+                data = json.loads(body)
+            except json.JSONDecodeError:
+                return werkzeug.wrappers.Response(
+                    json.dumps({'error': 'O corpo da requisição não é um JSON válido.'}),
+                    headers=[('Content-Type', 'application/json')],
+                    status=400
+                )
+
+            company_id = data.get('company_id')
+            if not company_id:
+                return werkzeug.wrappers.Response(
+                    json.dumps({'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}),
+                    headers=[('Content-Type', 'application/json')],
+                    status=400
+                )
+
+            today = datetime.today().date()
+            domain = [('company_id', '=', int(company_id))]
+            employees = request.env['hr.employee'].sudo().search(domain)
 
             rcords = []
             presentes = 0
 
             for employee in employees:
-                # Buscar apenas as presenças do dia atual
                 attendance = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', datetime.combine(today, datetime.min.time())),
@@ -80,7 +103,6 @@ class CheckIn(http.Controller):
                 ], limit=1)
 
                 if attendance:
-                    # Converter para string no formato desejado
                     check_in = attendance.check_in.strftime('%Y-%m-%dT%H:%M:%S') if attendance.check_in else None
                     check_out = attendance.check_out.strftime('%Y-%m-%dT%H:%M:%S') if attendance.check_out else None
                     rcords.append({
@@ -108,16 +130,44 @@ class CheckIn(http.Controller):
     @http.route('/monitoring/ausentes', auth='none', cors='*', csrf=False)
     def ausentes(self, **kw):
         try:
+            # Recuperando o corpo da requisição
+            body = request.httprequest.get_data(as_text=True)
+            if not body:
+                return werkzeug.wrappers.Response(
+                    json.dumps({'error': 'Requisição inválida. O corpo deve conter JSON.'}),
+                    headers=[('Content-Type', 'application/json')],
+                    status=400
+                )
+
+            try:
+                data = json.loads(body)
+            except json.JSONDecodeError:
+                return werkzeug.wrappers.Response(
+                    json.dumps({'error': 'O corpo da requisição não é um JSON válido.'}),
+                    headers=[('Content-Type', 'application/json')],
+                    status=400
+                )
+
+            # Obtendo o company_id do corpo da requisição
+            company_id = data.get('company_id')
+            if not company_id:
+                return werkzeug.wrappers.Response(
+                    json.dumps({'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}),
+                    headers=[('Content-Type', 'application/json')],
+                    status=400
+                )
 
             today = datetime.today().date()
 
-            employees = request.env['hr.employee'].sudo().search([])
+            # Filtrando os funcionários pela empresa (company_id)
+            domain = [('company_id', '=', int(company_id))]
+            employees = request.env['hr.employee'].sudo().search(domain)
 
             rcords = []
             ausentes = 0
 
+            # Verificando a presença de cada funcionário
             for employee in employees:
-
                 attendance = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', datetime.combine(today, datetime.min.time())),
@@ -382,7 +432,7 @@ class CheckIn(http.Controller):
     @http.route('/dailydelays', auth='none', cors='*', csrf=False, methods=['GET'])
     def dailydelays(self, **kw):
 
-        records = request.env['hr.attendance'].sudo().search([('id', '=' , '21')])
+        records = request.env['hr.attendance'].sudo().search([('id', '=', '21')])
 
         info = []
 
@@ -490,5 +540,13 @@ class CheckIn(http.Controller):
             status=200
         )
 
-
-
+    @http.route('/api/company', auth='none', cors='*', csrf=False, methods=['GET'])
+    def company(self):
+        records = request.env['res.company'].sudo().search([])
+        info = []
+        for row in records:
+            info.append({
+                'id': row.id,
+                'name': row.name,
+            })
+        return werkzeug.wrappers.Response(json.dumps(info), headers=[('Content-Type', 'application/json')], status=200)
