@@ -249,6 +249,7 @@ class HrPayslip(models.Model):
         return delays_info
 
 
+
 class PayrollAbsent(models.Model):
     _name = 'payrollabsent.payrollabsent'
     _description = 'Payroll Absent'
