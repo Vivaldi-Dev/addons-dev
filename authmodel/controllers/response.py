@@ -15,7 +15,6 @@ class JsonRequestNew(JsonRequest):
                 status=error and error.pop('http_status', 200) or 200,
                 headers=[('Content-Type', mime), ('Content-Length', len(body))]
             )
-        # Caso contrário, usa o comportamento padrão
         return super(JsonRequestNew, self)._json_response(result=result, error=error)
 
 

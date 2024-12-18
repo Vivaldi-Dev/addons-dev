@@ -119,7 +119,6 @@ class CheckIn(http.Controller):
             if not data:
                 return {'error': 'company is required'}
 
-            # Obter o campo company_id
             company_id = data.get('company_id')
             if not company_id:
                 return werkzeug.wrappers.Response(
@@ -166,11 +165,11 @@ class CheckIn(http.Controller):
     def percentages(self, **kw):
         return self.calculate_percentage(time_frame="day")
 
-    @http.route('/api/monitoring/percentages_weekly', auth='none', cors='*', csrf=False, methods=['POST'])
+    @http.route('/api/monitoring/percentages_weekly',  auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def percentages_weekly(self, **kw):
         return self.calculate_percentage(time_frame="week")
 
-    @http.route('/api/monitoring/percentages_monthly', auth='none', cors='*', csrf=False, methods=['POST'])
+    @http.route('/api/monitoring/percentages_monthly',  auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def percentages_monthly(self, **kw):
         return self.calculate_percentage(time_frame="month")
 
@@ -228,7 +227,7 @@ class CheckIn(http.Controller):
             return response_data
 
         except Exception as e:
-            # Caso haja algum erro, retornar o erro em formato JSON
+
             return http.Response(
                 json.dumps({'error': str(e)}),
                 content_type='application/json',
@@ -519,7 +518,8 @@ class CheckIn(http.Controller):
 
         return delays_info
 
-    @http.route('/api/company', auth='none', cors='*', csrf=False, methods=['GET'])
+    @token_required
+    @http.route('/company/company', auth='none',  cors='*', csrf=False, methods=['GET'])
     def company(self):
         records = request.env['res.company'].sudo().search([])
         info = []
@@ -577,10 +577,8 @@ class CheckIn(http.Controller):
                 status=500
             )
 
-    @http.route('/api/monitoring/daily_overtime_check', auth='none', type="json", cors='*', csrf=False,
-                methods=['POST'])
+    @http.route('/api/monitoring/monitoring', auth='none', type="json", cors='*', csrf=False, methods=['POST'])
     def daily_overtime_check(self, **kw):
-        # Obtém os dados da requisição
         data = request.jsonrequest
 
         if not data or 'company_id' not in data:
@@ -594,7 +592,6 @@ class CheckIn(http.Controller):
         today = datetime.today()
 
         for employee in employees:
-            # Busca os registros de check_out no dia atual (hoje)
             records = request.env['hr.attendance'].sudo().search([
                 ('employee_id', '=', employee.id),
                 ('check_out', '>=', datetime.combine(today, datetime.min.time())),
@@ -613,22 +610,25 @@ class CheckIn(http.Controller):
                 if not resource_calendar:
                     continue
 
-                attendance = next(
-                    (att for att in resource_calendar.attendance_ids if int(att.dayofweek) == today.weekday()),
-                    None
-                )
+                attendances_today = [
+                    att for att in resource_calendar.attendance_ids
+                    if int(att.dayofweek) == today.weekday()
+                ]
 
-                if not attendance:
+                if not attendances_today:
                     continue
 
-                check_out_time = check_out.time()
+                afternoon_attendance = next(
+                    (att for att in attendances_today if att.hour_from >= 12),
+                    None
+                )
+                attendance = afternoon_attendance or attendances_today[0]
 
                 expected_time = (datetime.min + timedelta(hours=attendance.hour_to)).time()
 
-                is_overtime = check_out_time > expected_time
+                check_out_time = check_out.time()
 
-                if not is_overtime:
-                    continue
+                is_overtime = check_out_time > expected_time
 
                 overtime_str = "0 min"
                 if is_overtime:
@@ -658,3 +658,4 @@ class CheckIn(http.Controller):
                 })
 
         return overtime_info
+
