@@ -7,3 +7,4 @@ class Employee(models.Model):
 
     x_nuit = fields.Char(string='Nuit')
     x_inss = fields.Char(string='INSS')
+    x_ativo = fields.Boolean(string='Notificação em Tempo Real', default=True)

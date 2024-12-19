@@ -631,6 +631,10 @@ class CheckIn(http.Controller):
                 is_overtime = check_out_time > expected_time
 
                 overtime_str = "0 min"
+                overtime_part1_str = "0 min"
+                overtime_part2_str = "0 min"
+                total_overtime_minutes = 0
+
                 if is_overtime:
                     check_out_datetime = datetime.combine(today, check_out_time)
                     expected_datetime = datetime.combine(today, expected_time)
@@ -638,15 +642,29 @@ class CheckIn(http.Controller):
                     overtime_delta = check_out_datetime - expected_datetime
                     overtime_minutes = overtime_delta.total_seconds() / 60
 
-                    if overtime_minutes >= 60:
-                        overtime_hours = overtime_minutes // 60
-                        remaining_minutes = overtime_minutes % 60
+                    expected_time_obj = datetime.combine(today, expected_time)
+                    time_until_20 = datetime.combine(today, datetime.min.time()) + timedelta(hours=20)
+                    overtime_until_20 = min(check_out_datetime, time_until_20) - expected_time_obj
+
+                    overtime_until_20_minutes = max(overtime_until_20.total_seconds() / 60, 0)
+                    overtime_part1_str = f"{int(overtime_until_20_minutes)} min" if overtime_until_20_minutes < 60 else f"{int(overtime_until_20_minutes // 60)}h"
+                    total_overtime_minutes += overtime_until_20_minutes
+
+                    if check_out_datetime > time_until_20:
+                        overtime_after_20 = check_out_datetime - time_until_20
+                        overtime_after_20_minutes = overtime_after_20.total_seconds() / 60
+                        overtime_part2_str = f"{int(overtime_after_20_minutes)} min" if overtime_after_20_minutes < 60 else f"{int(overtime_after_20_minutes // 60)}h"
+                        total_overtime_minutes += overtime_after_20_minutes
+
+                    if total_overtime_minutes >= 60:
+                        overtime_hours = total_overtime_minutes // 60
+                        remaining_minutes = total_overtime_minutes % 60
                         if remaining_minutes > 0:
                             overtime_str = f"{int(overtime_hours)} h {int(remaining_minutes)} min"
                         else:
                             overtime_str = f"{int(overtime_hours)} h"
                     else:
-                        overtime_str = f"{int(overtime_minutes)} min"
+                        overtime_str = f"{int(total_overtime_minutes)} min"
 
                 overtime_info.append({
                     'id': row.id,
@@ -654,7 +672,9 @@ class CheckIn(http.Controller):
                     'check_out': check_out.strftime('%H:%M'),
                     'expected_time': expected_time.strftime('%H:%M'),
                     'is_overtime': is_overtime,
-                    'overtime': overtime_str
+                    'overtime': overtime_str,
+                    'overtime_until_20h': overtime_part1_str,
+                    'overtime_after_20h': overtime_part2_str
                 })
 
         return overtime_info

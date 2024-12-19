@@ -1,9 +1,9 @@
 import threading
 import asyncio
 import websockets
-from datetime import datetime
 from odoo import http
 from odoo.exceptions import UserError
+from datetime import datetime, timedelta
 import logging
 
 from odoo.http import request
@@ -16,56 +16,46 @@ class ZKTecoController(http.Controller):
         if request.httprequest.method == 'POST':
             post_content = request.httprequest.data.decode('utf-8')
 
-            # Obtener el número de serie (SN) de los parámetros de la URL
+
             sn = kwargs.get('SN')
             if not sn:
                 _logger.error("Número de serie (SN) no encontrado en la solicitud.")
                 return "Error: Número de serie no encontrado"
 
-            # Opcional: Imprimir el contenido recibido para depuración
             _logger.info("Datos recibidos de ZKTeco: %s", post_content)
 
-            # Buscar la máquina usando el número de serie (SN)
             machine = request.env['zk.machine'].sudo().search([('name', '=', sn)], limit=1)
             if not machine:
                 raise UserError(f'Máquina con SN {sn} no encontrada.')
 
-            # Obtener el área de trabajo (res.partner) asociado con la máquina
             work_area = machine.address_id
 
-            # Procesar los datos del POST (ejemplo: "1010 2024-12-04 12:36:23 0 4 0 0 0 0 0 0")
             data_lines = post_content.splitlines()
 
             for line in data_lines:
-                # Dividir los campos (suponiendo que los campos están separados por tabuladores)
                 fields = line.split('\t')
 
-                # Asignar los valores de los campos a las variables correspondientes
                 if len(fields) < 10:
                     _logger.warning(f"Datos incompletos en la línea: {line}")
-                    continue  # Si los datos no tienen los campos esperados, ignoramos esta línea.
+                    continue
 
                 device_id = fields[0]
-                timestamp = fields[1]  # El segundo campo es la fecha y hora de la marcación
-                punch_type = fields[2]  # El tercer campo es el tipo de marcación (Check In/Check Out, etc.)
-                attendance_type = fields[3]  # El cuarto campo es el tipo de asistencia (Huella, rostro, etc.)
+                timestamp = fields[1]
+                punch_type = fields[2]
+                attendance_type = fields[3]
 
-                # Buscar al empleado basado en el device_id (ID del dispositivo biométrico)
                 employee = request.env['hr.employee'].sudo().search([('device_id', '=', device_id)], limit=1)
                 if not employee:
                     _logger.warning(f"Empleado no encontrado para el device_id: {device_id}")
                     continue
 
-                # Convertir la fecha y hora de la marcación al formato adecuado
                 try:
                     attendance_datetime = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     _logger.warning(f"Fecha y hora inválida en la línea: {line}")
                     continue
 
-                # Procesar Check In o Check Out
-                if punch_type == '0':  # Check In
-                    # Crear un registro de entrada
+                if punch_type == '0':
                     websocket_record = request.env['hr.attendance'].sudo().create({
                         'employee_id': employee.id,
                         'check_in': attendance_datetime,
@@ -76,18 +66,15 @@ class ZKTecoController(http.Controller):
                     })
                     _logger.info("Registrado Check In para empleado %s en %s", employee.name, attendance_datetime)
 
-                    # Iniciar un hilo para enviar la información al WebSocket
                     threading.Thread(target=self.send_to_relevant_websockets, args=(employee.id, attendance_datetime)).start()
 
-                elif punch_type == '1':  # Check Out
-                    # Buscar el último Check In sin Check Out
+                elif punch_type == '1':
                     attendance = request.env['hr.attendance'].sudo().search([
                         ('employee_id', '=', employee.id),
                         ('check_out', '=', False)
                     ], order='check_in desc', limit=1)
 
                     if attendance:
-                        # Actualizar el registro con la hora de salida
                         attendance.sudo().write({'check_out': attendance_datetime})
                         _logger.info("Registrado Check Out para empleado %s en %s", employee.name, attendance_datetime)
                     else:
@@ -96,6 +83,97 @@ class ZKTecoController(http.Controller):
                     _logger.warning("Tipo de marcación no soportado: %s", punch_type)
 
         return http.Response("OK", status=200)
+
+    import asyncio
+    import websockets
+    from datetime import datetime
+
+    class ZKTecoController(http.Controller):
+
+        @http.route('/api/monitoring/daily_delays_check', auth='none', type="json", cors='*', csrf=False,
+                    methods=['POST'])
+        def daily_delays_check(self, **kw):
+
+            data = request.jsonrequest
+
+            if not data:
+                return {'error': 'O campo "company_id" é obrigatório.'}
+
+            company_id = data.get('company_id')
+
+            employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+
+            delays_info = []
+            today = datetime.today()
+
+            for employee in employees:
+                records = request.env['hr.attendance'].sudo().search([
+                    ('employee_id', '=', employee.id),
+                    ('check_in', '>=', datetime.combine(today, datetime.min.time())),
+                    ('check_in', '<', datetime.combine(today, datetime.max.time()))
+                ])
+
+                for row in records:
+                    check_in = row.check_in
+                    if not check_in:
+                        continue
+
+                    if check_in.date() != today.date():
+                        continue
+
+                    resource_calendar = row.employee_id.resource_calendar_id
+                    if not resource_calendar:
+                        continue
+
+                    attendance = next(
+                        (att for att in resource_calendar.attendance_ids if int(att.dayofweek) == today.weekday()),
+                        None
+                    )
+
+                    if not attendance:
+                        continue
+
+                    check_in_time = check_in.time()
+                    expected_time = (datetime.min + timedelta(hours=attendance.hour_from)).time()
+
+                    is_late = check_in_time > expected_time
+
+                    if not is_late:
+                        continue
+
+                    delay_str = "0 min"
+                    if is_late:
+                        check_in_datetime = datetime.combine(today, check_in_time)
+                        expected_datetime = datetime.combine(today, expected_time)
+
+                        delay_delta = check_in_datetime - expected_datetime
+                        delay_minutes = delay_delta.total_seconds() / 60
+
+                        if delay_minutes >= 60:
+                            delay_hours = delay_minutes // 60
+                            remaining_minutes = delay_minutes % 60
+                            if remaining_minutes > 0:
+                                delay_str = f"{int(delay_hours)} h {int(remaining_minutes)} min"
+                            else:
+                                delay_str = f"{int(delay_hours)} h"
+                        else:
+                            delay_str = f"{int(delay_minutes)} min"
+
+                    delays_info.append({
+                        'id': row.id,
+                        'employee_name': row.employee_id.name,
+                        'check_in': check_in.strftime('%H:%M'),
+                        'expected_time': expected_time.strftime('%H:%M'),
+                        'is_late': is_late,
+                        'delay': delay_str
+                    })
+
+                    # Enviar dados de atrasos via WebSocket para cada funcionário atrasado
+                    if is_late:
+                        self.send_delay_notification(employee.id, delay_str, check_in.strftime('%H:%M'))
+
+            return delays_info
+
 
     def send_to_relevant_websockets(self, employee_id, attendance_datetime):
 
