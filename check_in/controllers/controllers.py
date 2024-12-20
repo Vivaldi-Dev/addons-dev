@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 from odoo import http
+from odoo.exceptions import ValidationError
 from odoo.http import request
 import werkzeug
 import json
@@ -165,11 +165,11 @@ class CheckIn(http.Controller):
     def percentages(self, **kw):
         return self.calculate_percentage(time_frame="day")
 
-    @http.route('/api/monitoring/percentages_weekly',  auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @http.route('/api/monitoring/percentages_weekly', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def percentages_weekly(self, **kw):
         return self.calculate_percentage(time_frame="week")
 
-    @http.route('/api/monitoring/percentages_monthly',  auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @http.route('/api/monitoring/percentages_monthly', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def percentages_monthly(self, **kw):
         return self.calculate_percentage(time_frame="month")
 
@@ -519,7 +519,7 @@ class CheckIn(http.Controller):
         return delays_info
 
     @token_required
-    @http.route('/company/company', auth='none',  cors='*', csrf=False, methods=['GET'])
+    @http.route('/company/company', auth='none', cors='*', csrf=False, methods=['GET'])
     def company(self):
         records = request.env['res.company'].sudo().search([])
         info = []
@@ -679,3 +679,77 @@ class CheckIn(http.Controller):
 
         return overtime_info
 
+    @http.route('/api/all/employee/', type='json', auth='none', csrf=False, methods=['POST', ])
+    def all_employee(self):
+        data = request.jsonrequest
+
+        if not data or 'company_id' not in data:
+            return {'error': 'O campo "company_id" é obrigatório.'}
+
+        company_id = data['company_id']
+
+        employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+
+        employees_info = []
+        for employee in employees:
+            employees_info.append({
+                'id': employee.id,
+                'name': employee.name,
+                'email': employee.user_id.login,
+            })
+        return employees_info
+
+    @http.route('/api/employees', type='json', auth='none', methods=['PUT'], csrf=False)
+    def update_employee_notifications(self):
+
+        data = request.jsonrequest
+        employee_ids = data.get('employee_ids', [])
+        x_ativo = data.get('is_active')
+
+        if not employee_ids:
+            return {'status': 'error', 'message': 'Os IDs dos funcionários devem ser uma lista de inteiros.',
+                    'data': data}
+
+        if not isinstance(x_ativo, bool):
+            return {'status': 'error', 'message': 'O valor de "x_ativo" deve ser um booleano.', 'data': data}
+
+        employees = request.env['hr.employee'].sudo().browse(employee_ids)
+
+        non_existing_employees = [emp_id for emp_id in employee_ids if emp_id not in employees.ids]
+        if non_existing_employees:
+            return {'status': 'error', 'message': f'Funcionários com IDs {non_existing_employees} não encontrados.',
+                    'data': data}
+
+        employees.write({'x_ativo': x_ativo})
+
+        return {'status': 'success', 'message': 'Notificação em tempo real atualizada com sucesso.', 'data': data}
+
+    @http.route('/api/employees_avtive', type='json', auth='none', methods=['POST'], csrf=False)
+    def employees_avtive(self):
+
+        data = request.jsonrequest
+
+        if not data or 'company_id' not in data:
+            return {'error': 'O campo "company_id" é obrigatório.'}
+
+        company_id = data['company_id']
+
+        employees = request.env['hr.employee'].sudo().search([
+            ('company_id', '=', company_id),
+            ('x_ativo', '!=', False)
+        ])
+
+        if not employees:
+            return {'status': 'error', 'message': 'Nenhum funcionário encontrado com o campo "x_ativo" ativo.'}
+
+        employee_data = []
+        for emp in employees:
+            employee_data.append({
+                'id': emp.id,
+                'name': emp.name,
+                'email': emp.work_email,
+                'company_id': emp.company_id.id,
+                'x_ativo': emp.x_ativo
+            })
+
+        return employee_data

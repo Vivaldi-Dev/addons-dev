@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from datetime import timedelta, datetime
 from datetime import date, datetime, time
 from odoo import api, fields, models, tools, _
@@ -79,55 +78,52 @@ class HrPayslip(models.Model):
         return res
 
     def get_inputs(self, contracts, date_from, date_to):
-        print(f"Chamando get_inputs de {date_from} até {date_to}")  # Print para verificar quando get_inputs é chamado
-
+        """
+        Gera os dados de entrada para os contratos com base em atrasos, faltas e horas extras
+        entre as datas fornecidas.
+        """
         res = []
-
         structure_ids = contracts.get_all_structures()
         rule_ids = self.env['hr.payroll.structure'].browse(structure_ids).get_all_rules()
         sorted_rule_ids = [rule_id for rule_id, _ in sorted(rule_ids, key=lambda x: x[1])]
 
         inputs = self.env['hr.salary.rule'].browse(sorted_rule_ids).mapped('input_ids')
 
+        # Obter faltas, atrasos e horas extras
         faltas_por_funcionario = self.look_for_fouls(date_from, date_to)
         delays_info = self.daily_delays_check(date_from, date_to)
-
-        print("Chamando o método daily_overtime_check dentro de get_inputs.")  # Print para ver a chamada
         overtime_info = self.daily_overtime_check(date_from, date_to)
 
+        # Agregar atrasos e horas extras por funcionário
         total_delays_by_employee = {}
         total_overtime_by_employee = {}
 
         for delay in delays_info:
             employee_id = delay['id']
             delay_minutes = delay.get('delay', 0)
-
-            if employee_id in total_delays_by_employee:
-                total_delays_by_employee[employee_id] += delay_minutes
-            else:
-                total_delays_by_employee[employee_id] = delay_minutes
+            total_delays_by_employee[employee_id] = total_delays_by_employee.get(employee_id, 0) + delay_minutes
 
         for overtime in overtime_info:
             employee_id = overtime['id']
             overtime_minutes = overtime.get('overtime_minutes', 0)
-            overtime_minutes
-            if employee_id in total_overtime_by_employee:
-                total_overtime_by_employee[employee_id] += overtime_minutes
-            else:
-                total_overtime_by_employee[employee_id] = overtime_minutes
+            total_overtime_by_employee[employee_id] = total_overtime_by_employee.get(employee_id, 0) + overtime_minutes
 
+        # Processar entradas para cada contrato
         for contract in contracts:
-            faltas = sum(1 for falta in faltas_por_funcionario if falta['id'] == contract.employee_id.id)
+            employee_id = contract.employee_id.id
 
-            total_delay_minutes = total_delays_by_employee.get(contract.employee_id.id, 0)
-            delay_amount = round(total_delay_minutes / 60, 2)
+            # Faltas
+            faltas = sum(1 for falta in faltas_por_funcionario if falta['id'] == employee_id)
 
-            total_overtime_minutes = total_overtime_by_employee.get(contract.employee_id.id, 0)
+            # Atrasos
+            total_delay_minutes = total_delays_by_employee.get(employee_id, 0)
+            delay_amount = round(total_delay_minutes / 60, 2)  # Converter para horas
 
+            # Horas extras
+            total_overtime_minutes = total_overtime_by_employee.get(employee_id, 0)
+            overtime_amount = round(total_overtime_minutes / 60, 2)  # Converter para horas
 
-            overtime_amount = round(total_overtime_minutes / 60, 2)
-            print('fhjkdsfhjkdshfjkhdsjkfhjksdhfjk',overtime_amount)
-
+            # Adicionar entradas para regras salariais
             for input in inputs:
                 if input.code == 'D_P_A':
                     input_data = {
@@ -144,10 +140,25 @@ class HrPayslip(models.Model):
                         'contract_id': contract.id,
                     }
                 elif input.code == 'H_E_150':
+                    overtime_until_20h = sum(
+                        self.convert_time_to_minutes(overtime.get('overtime_until_20h', '0 min'))
+                        for overtime in overtime_info if overtime['id'] == employee_id
+                    )
                     input_data = {
                         'name': input.name,
                         'code': input.code,
-                        'amount': overtime_amount,
+                        'amount': overtime_until_20h / 60,  # Converter para horas
+                        'contract_id': contract.id,
+                    }
+                elif input.code == 'H_E_200':  # Código de horas extras após 20h
+                    overtime_after_20h = sum(
+                        self.convert_time_to_minutes(overtime.get('overtime_after_20h', '0 min'))
+                        for overtime in overtime_info if overtime['id'] == employee_id
+                    )
+                    input_data = {
+                        'name': input.name,
+                        'code': input.code,
+                        'amount': overtime_after_20h / 60,  # Converter para horas
                         'contract_id': contract.id,
                     }
                 else:
@@ -160,8 +171,23 @@ class HrPayslip(models.Model):
 
                 res.append(input_data)
 
-        print("Resultado final de get_inputs:", res)
         return res
+
+    def convert_time_to_minutes(self, time_str):
+        """Converte uma string de tempo como '3h', '30 min', '1h 30 min' em minutos."""
+        time_str = time_str.lower()
+        minutes = 0
+
+        if 'h' in time_str:
+            hours = int(time_str.split('h')[0].strip())
+            minutes += hours * 60
+
+        if 'min' in time_str:
+            min_part = time_str.split('min')[0].strip()
+            if min_part:
+                minutes += int(min_part)
+
+        return minutes
 
     def look_for_fouls(self, date_from, date_to):
 
@@ -246,10 +272,7 @@ class HrPayslip(models.Model):
         overtime_info = []
 
         for employee in employees:
-            # print(f"Verificando os registros de {employee.name}")
-
             records = self.env['hr.attendance'].sudo().search([
-                ('id', '=', '30'),
                 ('employee_id', '=', employee.id),
                 ('check_out', '>=', date_from),
                 ('check_out', '<=', date_to)
@@ -286,6 +309,10 @@ class HrPayslip(models.Model):
                 is_overtime = check_out_time > expected_time
 
                 overtime_str = "0 min"
+                overtime_part1_str = "0 min"
+                overtime_part2_str = "0 min"
+                total_overtime_minutes = 0
+
                 if is_overtime:
                     check_out_datetime = datetime.combine(check_out_date, check_out_time)
                     expected_datetime = datetime.combine(check_out_date, expected_time)
@@ -293,28 +320,42 @@ class HrPayslip(models.Model):
                     overtime_delta = check_out_datetime - expected_datetime
                     overtime_minutes = overtime_delta.total_seconds() / 60
 
-                    if overtime_minutes >= 60:
-                        overtime_hours = overtime_minutes // 60
-                        remaining_minutes = overtime_minutes % 60
+                    expected_time_obj = datetime.combine(check_out_date, expected_time)
+                    time_until_20 = datetime.combine(check_out_date, datetime.min.time()) + timedelta(hours=20)
+                    overtime_until_20 = min(check_out_datetime, time_until_20) - expected_time_obj
+
+                    overtime_until_20_minutes = max(overtime_until_20.total_seconds() / 60, 0)
+                    overtime_part1_str = f"{int(overtime_until_20_minutes)} min" if overtime_until_20_minutes < 60 else f"{int(overtime_until_20_minutes // 60)}h"
+                    total_overtime_minutes += overtime_until_20_minutes
+
+                    if check_out_datetime > time_until_20:
+                        overtime_after_20 = check_out_datetime - time_until_20
+                        overtime_after_20_minutes = overtime_after_20.total_seconds() / 60
+                        overtime_part2_str = f"{int(overtime_after_20_minutes)} min" if overtime_after_20_minutes < 60 else f"{int(overtime_after_20_minutes // 60)}h"
+                        total_overtime_minutes += overtime_after_20_minutes
+
+                    if total_overtime_minutes >= 60:
+                        overtime_hours = total_overtime_minutes // 60
+                        remaining_minutes = total_overtime_minutes % 60
                         if remaining_minutes > 0:
                             overtime_str = f"{int(overtime_hours)} h {int(remaining_minutes)} min"
                         else:
                             overtime_str = f"{int(overtime_hours)} h"
                     else:
-                        overtime_str = f"{int(overtime_minutes)} min"
+                        overtime_str = f"{int(total_overtime_minutes)} min"
 
                 overtime_info.append({
                     'id': row.employee_id.id,
                     'employee_name': row.employee_id.name,
-                    'date': check_out_date.strftime('%Y-%m-%d'),
                     'check_out': check_out.strftime('%H:%M'),
                     'expected_time': expected_time.strftime('%H:%M'),
                     'is_overtime': is_overtime,
-                    'overtime': overtime_str
+                    'overtime_minutes': int(total_overtime_minutes),
+                    'overtime_until_20h': overtime_part1_str,
+                    'overtime_after_20h': overtime_part2_str
                 })
 
         print(f"Resultado da verificação de horas extras: {overtime_info}")
-
         return overtime_info
 
 
