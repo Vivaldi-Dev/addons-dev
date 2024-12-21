@@ -679,29 +679,41 @@ class CheckIn(http.Controller):
 
         return overtime_info
 
-    @http.route('/api/all/employee/', type='json', auth='none', csrf=False, methods=['POST', ])
+    @http.route('/api/all/employees', type='json', auth='none', methods=['POST'], csrf=False)
     def all_employee(self):
-        data = request.jsonrequest
+        # Capturando os parâmetros da query string
+        company_id = request.httprequest.args.get('company_id')
+        employee_id = request.httprequest.args.get('id')
+        employee_name = request.httprequest.args.get('name')
 
-        if not data or 'company_id' not in data:
+        if not company_id:
             return {'error': 'O campo "company_id" é obrigatório.'}
 
-        company_id = data['company_id']
+        domain = [('company_id', '=', int(company_id))]
 
-        employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+        if employee_id:
+            domain.append(('id', '=', int(employee_id)))
 
-        employees_info = []
-        for employee in employees:
-            employees_info.append({
+        if employee_name:
+            domain.append(('name', 'ilike', employee_name))
+
+        employees = request.env['hr.employee'].sudo().search(domain)
+
+        employees_info = [
+            {
                 'id': employee.id,
                 'name': employee.name,
                 'email': employee.user_id.login,
-            })
+                'x_ativo':employee.x_ativo,
+            }
+            for employee in employees
+        ]
+
         return employees_info
+
 
     @http.route('/api/employees', type='json', auth='none', methods=['PUT'], csrf=False)
     def update_employee_notifications(self):
-
         data = request.jsonrequest
         employee_ids = data.get('employee_ids', [])
         x_ativo = data.get('is_active')
@@ -724,9 +736,9 @@ class CheckIn(http.Controller):
 
         return {'status': 'success', 'message': 'Notificação em tempo real atualizada com sucesso.', 'data': data}
 
+
     @http.route('/api/employees_avtive', type='json', auth='none', methods=['POST'], csrf=False)
     def employees_avtive(self):
-
         data = request.jsonrequest
 
         if not data or 'company_id' not in data:
@@ -753,3 +765,5 @@ class CheckIn(http.Controller):
             })
 
         return employee_data
+
+# @http.route('api/employees_by_id', type='json', auth='none', methods=['POST'], csrf=False)
