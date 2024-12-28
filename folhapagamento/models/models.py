@@ -1,4 +1,4 @@
-from odoo import models, fields, api, exceptions,_
+from odoo import models, fields, api, exceptions, _
 from odoo.exceptions import ValidationError, UserError
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -110,21 +110,11 @@ class FolhaPagamento(models.Model):
             },
         }
 
-    @api.model
     def unlink(self):
-        if any(record.state == 'approved' for record in self):
-            raise ValidationError(_(
-                "Não é possível excluir uma folha de pagamento que está no estado 'Aprovado'."))
+        if any(self.filtered(lambda payslip: payslip.state not in ('submitted', 'cancelled'))):
+            raise UserError(_('You cannot delete a Folha de  which is not submitted or cancelled!'))
 
         return super(FolhaPagamento, self).unlink()
-
-    # @api.multi
-    # def unlink(self):
-    #     for order in self:
-    #         if order.state not in ('draft', 'cancel'):
-    #          raise UserError(_('You can not delete a sent quotation or a sales order! Try to cancel it before.'))
-    #
-    #     return super(FolhaPagamento, self).unlink()
 
 
 

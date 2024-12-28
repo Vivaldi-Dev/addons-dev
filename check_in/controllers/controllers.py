@@ -1,5 +1,5 @@
 from odoo import http
-from odoo.exceptions import ValidationError
+from calendar import monthrange
 from odoo.http import request
 import werkzeug
 import json
@@ -681,7 +681,7 @@ class CheckIn(http.Controller):
 
     @http.route('/api/all/employees', type='json', auth='none', methods=['POST'], csrf=False)
     def all_employee(self):
-        # Capturando os parâmetros da query string
+
         company_id = request.httprequest.args.get('company_id')
         employee_id = request.httprequest.args.get('id')
         employee_name = request.httprequest.args.get('name')
@@ -704,13 +704,12 @@ class CheckIn(http.Controller):
                 'id': employee.id,
                 'name': employee.name,
                 'email': employee.user_id.login,
-                'x_ativo':employee.x_ativo,
+                'x_ativo': employee.x_ativo,
             }
             for employee in employees
         ]
 
         return employees_info
-
 
     @http.route('/api/employees', type='json', auth='none', methods=['PUT'], csrf=False)
     def update_employee_notifications(self):
@@ -735,7 +734,6 @@ class CheckIn(http.Controller):
         employees.write({'x_ativo': x_ativo})
 
         return {'status': 'success', 'message': 'Notificação em tempo real atualizada com sucesso.', 'data': data}
-
 
     @http.route('/api/employees_avtive', type='json', auth='none', methods=['POST'], csrf=False)
     def employees_avtive(self):
@@ -766,4 +764,155 @@ class CheckIn(http.Controller):
 
         return employee_data
 
-# @http.route('api/employees_by_id', type='json', auth='none', methods=['POST'], csrf=False)
+    @http.route('/api/monitoring/employee', type='json',auth='none', cors='*', csrf=False, methods=['POST'])
+    def employee_by_id(self, **kw):
+        try:
+            data = request.jsonrequest
+            employee_id = data.get('employee_id')
+            month = data.get('month')
+
+            if not employee_id or not month:
+                return {"error": "Employee ID and month are required"}
+
+            current_year = datetime.now().year
+
+            employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
+
+            if not employee:
+                return {"error": "Employee not found"}
+
+            next_month = month + 1 if month < 12 else 1
+            next_month_year = current_year if month < 12 else current_year + 1
+
+            attendance_records = request.env['hr.attendance'].sudo().search([
+                ('employee_id', '=', employee_id),
+                ('check_in', '>=', datetime(current_year, month, 1)),
+                ('check_in', '<', datetime(next_month_year, next_month, 1))
+            ])
+
+            attendance_info = [{
+                'check_in': record.check_in.isoformat() if record.check_in else None,
+                'check_out': record.check_out.isoformat() if record.check_out else None
+            } for record in attendance_records]
+
+            # Construir a resposta
+            employee_info = {
+                'id': employee.id,
+                'name': employee.name,
+                'job_title': employee.job_id.name,
+                'attendance': attendance_info
+            }
+
+            return employee_info
+
+        except Exception as e:
+            return {"error": f"An error occurred: {str(e)}"}
+
+    @http.route('/api/monitoring/employee/missed_days', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    def employee_missed_days(self, **kw):
+        data = request.jsonrequest
+        employee_id = data.get('employee_id')
+        month = data.get('month')
+
+        if not employee_id or not month:
+            return {"error": "Os campos 'employee_id' e 'month' são obrigatórios."}
+
+        try:
+            month = int(month)
+        except ValueError:
+            return {"error": "O campo 'month' deve ser um inteiro válido."}
+
+        if not 1 <= month <= 12:
+            return {"error": "O campo 'month' deve estar entre 1 e 12."}
+
+        year = datetime.now().year
+
+        employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
+        if not employee:
+            return {"error": "Employee not found"}
+
+        current_date = datetime.now().date()
+        num_days = monthrange(year, month)[1]
+
+        all_days = [
+            datetime(year, month, day).date()
+            for day in range(1, num_days + 1)
+            if datetime(year, month, day).date() <= current_date
+        ]
+
+        attendance_records = request.env['hr.attendance'].sudo().search([
+            ('employee_id', '=', employee_id),
+            ('check_in', '>=', datetime(year, month, 1)),
+            ('check_in', '<', datetime(year, month, num_days) + timedelta(days=1))
+        ])
+
+        check_in_days = {record.check_in.date() for record in attendance_records if record.check_in}
+
+        missed_days = [day.isoformat() for day in all_days if day not in check_in_days]
+
+        response = {
+            'id': employee.id,
+            'name': employee.name,
+            'job_title': employee.job_id.name,
+            'missed_days': missed_days
+        }
+
+        return response
+
+    @http.route('/api/monitoring/employee/checkin_summary', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    def employee_checkin_summary(self, **kw):
+        data = request.jsonrequest
+        employee_id = data.get('employee_id')
+        month = data.get('month')
+
+
+        if not employee_id or not month :
+            return {"error": "Os campos 'employee_id', 'month' e 'year' são obrigatórios."}
+
+        try:
+            month = int(month)
+
+        except ValueError:
+            return {"error": "Os campos 'month' e 'year' devem ser inteiros válidos."}
+
+        if not 1 <= month <= 12:
+            return {"error": "O campo 'month' deve estar entre 1 e 12."}
+
+        try:
+            employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
+            if not employee:
+                return {"error": "Employee not found"}
+
+            year = datetime.now().year
+
+            num_days = monthrange(year, month)[1]
+            all_days = [
+                datetime(year, month, day).date()
+                for day in range(1, num_days + 1)
+                if datetime(year, month, day).weekday() != 6
+            ]
+
+            attendance_records = request.env['hr.attendance'].sudo().search([
+                ('employee_id', '=', employee_id),
+                ('check_in', '>=', datetime(year, month, 1)),
+                ('check_in', '<', datetime(year, month, num_days) + timedelta(days=1))
+            ])
+            check_in_days = {record.check_in.date() for record in attendance_records if record.check_in}
+
+            days_with_checkin = [day.isoformat() for day in all_days if day in check_in_days]
+            days_without_checkin = [day.isoformat() for day in all_days if day not in check_in_days]
+
+            summary = {
+                'employee_id': employee.id,
+                'employee_name': employee.name,
+                'total_business_days': len(all_days),
+                'days_with_checkin': len(days_with_checkin),
+                'days_without_checkin': len(days_without_checkin),
+            }
+
+            return summary
+
+        except Exception as e:
+            return {"error": f"An error occurred: {str(e)}"}
+
+
