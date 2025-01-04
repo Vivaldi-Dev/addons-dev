@@ -1,7 +1,7 @@
 from odoo import models, fields, api, exceptions, _
-from odoo.exceptions import ValidationError, UserError
 from datetime import datetime, timedelta
 from collections import defaultdict
+from odoo.exceptions import ValidationError, UserError
 
 
 class HrPayslip(models.Model):
@@ -12,8 +12,8 @@ class HrPayslip(models.Model):
 
 class FolhaPagamento(models.Model):
     _name = 'folhapagamento.folhapagamento'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'Folha de Pagamento'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string='Descrição')
     month = fields.Selection(
@@ -43,26 +43,7 @@ class FolhaPagamento(models.Model):
         inverse_name='folhapagamento_id',
         string='Linhas Agregadas',
         compute='_compute_aggregated_salary_rule_lines',
-        store=True,
-        order='employee_id asc'
-    )
-
-    aggregated_salary_rule_lines_irps = fields.One2many(
-        comodel_name='folhapagamento.aggregated.line',
-        inverse_name='folhapagamento_id',
-        string='Linhas Agregadas',
-        compute='_compute_aggregated_salary_rule_lines',
-        store=True,
-        domain=[('irps_amout', '!=', 0)]
-    )
-
-    aggregated_salary_rule_lines_inss = fields.One2many(
-        comodel_name='folhapagamento.aggregated.line',
-        inverse_name='folhapagamento_id',
-        string='Linhas Agregadas',
-        compute='_compute_aggregated_salary_rule_lines',
-        store=True,
-        domain=[('inss_amount', '!=', 0)]
+        store=True
     )
 
     state = fields.Selection(
@@ -111,45 +92,90 @@ class FolhaPagamento(models.Model):
         }
 
     def unlink(self):
+        # Verifica se existe alguma Folha de Pagamento que não esteja nos estados 'submitted' ou 'cancelled'
         if any(self.filtered(lambda payslip: payslip.state not in ('submitted', 'cancelled'))):
-            raise UserError(_('You cannot delete a Folha de  which is not submitted or cancelled!'))
+            raise UserError(_("Não é possível excluir uma folha de pagamento que está no estado 'Aprovado' ou 'Concluído'."))
 
+        # Se todas as folhas de pagamento estiverem nos estados permitidos, executa a exclusão
         return super(FolhaPagamento, self).unlink()
 
+    @api.model
+    def search(self, args, offset=0, limit=None, order=None, count=False):
+        company_id = self.env.company.id
+        if company_id:
+            args = args or []
+            args.append(('company_id', '=', company_id))
+        print(f"Empresa ativa no search: {company_id}, Filtros aplicados: {args}")
+        return super(FolhaPagamento, self).search(args, offset=offset, limit=limit, order=order, count=count)
 
 
-    @api.onchange('month')
-    def _onchange_month(self):
+    # @api.onchange('month')
+    # def _onchange_month(self):
+    #     if self.month:
+    #         year = datetime.now().year
+    #         date_from = datetime.strptime(f'{year}-{self.month}-01', '%Y-%m-%d').date()
+    #         date_to = (date_from.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+    #
+    #         # Aplica el filtro basado solo en el mes
+    #         domain = [
+    #             ('date_from', '>=', date_from),
+    #             ('date_to', '<=', date_to),
+    #         ]
+    #         if self.departamento_id:  # Si hay un departamento seleccionado, agrégalo al filtro
+    #             domain.append(('employee_id.department_id', '=', self.departamento_id.id))
+    #
+    #         payslips = self.env['hr.payslip'].search(domain)
+    #         self.payslip_ids = [(6, 0, payslips.ids)]
+    #     else:
+    #         # Si no hay mes seleccionado, vaciar la lista de payslips
+    #         self.payslip_ids = [(5, 0, 0)]
+    #
+    # @api.onchange('departamento_id')
+    # def _onchange_departamento_id(self):
+    #     if self.month:
+    #         self.payslip_ids = [(5, 0, 0)]
+    #         self._apply_department_filter()
+    #
+    # def _apply_department_filter(self):
+    #     year = datetime.now().year
+    #     date_from = datetime.strptime(f'{year}-{self.month}-01', '%Y-%m-%d').date()
+    #     date_to = (date_from.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+    #
+    #     # Aplica el filtro basado en el mes y el departamento
+    #     domain = [
+    #         ('date_from', '>=', date_from),
+    #         ('date_to', '<=', date_to),
+    #     ]
+    #     if self.departamento_id:
+    #         domain.append(('employee_id.department_id', '=', self.departamento_id.id))
+    #
+    #     payslips = self.env['hr.payslip'].search(domain)
+    #     self.payslip_ids = [(6, 0, payslips.ids)]
 
+    @api.onchange('month', 'departamento_id')
+    def _onchange_month_or_departamento(self):
         if self.month:
+
             year = datetime.now().year
             date_from = datetime.strptime(f'{year}-{self.month}-01', '%Y-%m-%d').date()
             date_to = (date_from.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
 
-            payslips = self.env['hr.payslip'].search([
+            domain = [
                 ('date_from', '>=', date_from),
                 ('date_to', '<=', date_to),
-            ])
+            ]
+
+            if self.departamento_id:
+                domain.append(('employee_id.department_id', '=', self.departamento_id.id))
+
+            # Buscar os payslips que correspondem ao domínio
+            payslips = self.env['hr.payslip'].search(domain)
+            print(f"Payslips encontrados: {payslips.ids}")
 
             self.payslip_ids = [(6, 0, payslips.ids)]
+        else:
 
-    @api.onchange('departamento_id')
-    def _onchange_departamento_id(self):
-        if self.departamento_id:
-            self._apply_department_filter()
-
-    def _apply_department_filter(self):
-        if self.month:
-            year = datetime.now().year
-            date_from = datetime.strptime(f'{year}-{self.month}-01', '%Y-%m-%d').date()
-            date_to = (date_from.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-
-            payslips = self.env['hr.payslip'].search([
-
-                ('employee_id.department_id', '=', self.departamento_id.id),
-            ])
-
-            self.payslip_ids = [(6, 0, payslips.ids)]
+            self.payslip_ids = False
 
     @api.depends('payslip_ids')
     def _compute_salary_rule_line_ids(self):
@@ -158,10 +184,114 @@ class FolhaPagamento(models.Model):
             record.salary_rule_line_ids = line_ids
             print(f"Salary Line IDs Computed: {line_ids}")
 
+    # @api.depends('salary_rule_line_ids', 'departamento_id')
+    # def _compute_aggregated_salary_rule_lines(self):
+    #     AggregatedLine = self.env['folhapagamento.aggregated.line']
+    #     for record in self:
+    #
+    #         departamento_id = record.departamento_id.id if record.departamento_id else None
+    #
+    #         group_by_employee_contract = defaultdict(lambda: {'codes': {}, 'total': 0.0, 'job_position': None})
+    #
+    #         for line in record.salary_rule_line_ids:
+    #             if departamento_id and line.employee_id.department_id.id == departamento_id:
+    #                 key = (line.employee_id.id, line.contract_id.id, line.employee_id.barcode)
+    #                 group_by_employee_contract[key]['employee_id'] = line.employee_id.id
+    #                 group_by_employee_contract[key]['contract_id'] = line.contract_id.id
+    #                 group_by_employee_contract[key]['job_position'] = line.employee_id.job_id.name
+    #                 group_by_employee_contract[key]['codes'][line.code] = line.amount
+    #                 group_by_employee_contract[key]['total'] += line.amount
+    #                 group_by_employee_contract[key]['barcode'] = line.employee_id.barcode
+    #             elif not departamento_id:
+    #                 key = (line.employee_id.id, line.contract_id.id, line.employee_id.barcode)
+    #                 group_by_employee_contract[key]['employee_id'] = line.employee_id.id
+    #                 group_by_employee_contract[key]['contract_id'] = line.contract_id.id
+    #                 group_by_employee_contract[key]['job_position'] = line.employee_id.job_id.name
+    #                 group_by_employee_contract[key]['codes'][line.code] = line.amount
+    #                 group_by_employee_contract[key]['total'] = line.amount
+    #                 group_by_employee_contract[key]['barcode'] = line.employee_id.barcode
+    #
+    #         aggregated_lines = []
+    #         for key, values in group_by_employee_contract.items():
+    #
+    #             total_remuneracoes = (
+    #                     values['codes'].get('GROSS', 0.0) +
+    #                     values['codes'].get('H_E_200', 0.0) +
+    #                     values['codes'].get('H_E_150', 0.0)
+    #             )
+    #
+    #             total_descontos = (
+    #                     values['codes'].get('INSS', 0.0) + values['codes'].get('IRPS', 0.0) +
+    #                     values['codes'].get('D_P_A', 0.0) + values['codes'].get('DIS_F_D', 0.0) +
+    #                     values['codes'].get('DD', 0.0) + values['codes'].get('DPE', 0.0) +
+    #                     values['codes'].get('DFF', 0.0)
+    #             )
+    #
+    #             # Verifica se a linha agregada já existe
+    #             existing_line = AggregatedLine.search([
+    #                 ('folhapagamento_id', '=', record.id),
+    #                 ('employee_id', '=', values['employee_id']),
+    #                 ('contract_id', '=', values['contract_id'])
+    #             ], limit=1)
+    #
+    #             if existing_line:
+    #                 # Se já existir, apenas atualiza os valores
+    #                 existing_line.write({
+    #                     'basic_amount': values['codes'].get('BASIC', 0.0),
+    #                     'inc_amount': values['codes'].get('INC', 0.0),
+    #                     'gross_amount': values['codes'].get('GROSS', 0.0),
+    #                     'inss_amount': values['codes'].get('INSS', 0.0),
+    #                     'net_amount': values['codes'].get('NET', 0.0),
+    #                     'descontoatraso': values['codes'].get('D_P_A', 0.0),
+    #                     'descotofaltasdias': values['codes'].get('DIS_F_D', 0.0),
+    #                     'emprestimos': values['codes'].get('DPE', 0.0),
+    #                     'fundofunebre': values['codes'].get('DFF', 0.0),
+    #                     'horasextrascem': values['codes'].get('H_E_200', 0.0),
+    #                     'horasextrasc': values['codes'].get('H_E_150', 0.0),
+    #                     'irps_amout': values['codes'].get('IRPS', 0.0),
+    #                     'outrosdescontos': values['codes'].get('DD', 0.0),
+    #                     'total_amount': values['total'],
+    #                     'code': values['barcode'],
+    #                     'totalderemuneracoes': total_remuneracoes,
+    #                     'totaldedescontos': total_descontos
+    #                 })
+    #                 aggregated_lines.append(existing_line.id)
+    #             else:
+    #
+    #                 aggregated_line = AggregatedLine.create({
+    #                     'folhapagamento_id': record.id,
+    #                     'employee_id': values['employee_id'],
+    #                     'contract_id': values['contract_id'],
+    #                     'job_position': values['job_position'],
+    #                     'basic_amount': values['codes'].get('BASIC', 0.0),
+    #                     'inc_amount': values['codes'].get('INC', 0.0),
+    #                     'gross_amount': values['codes'].get('GROSS', 0.0),
+    #                     'inss_amount': values['codes'].get('INSS', 0.0),
+    #                     'net_amount': values['codes'].get('NET', 0.0),
+    #                     'descontoatraso': values['codes'].get('D_P_A', 0.0),
+    #                     'descotofaltasdias': values['codes'].get('DIS_F_D', 0.0),
+    #                     'emprestimos': values['codes'].get('DPE', 0.0),
+    #                     'fundofunebre': values['codes'].get('DFF', 0.0),
+    #                     'horasextrascem': values['codes'].get('H_E_200', 0.0),
+    #                     'horasextrasc': values['codes'].get('H_E_150', 0.0),
+    #                     'irps_amout': values['codes'].get('IRPS', 0.0),
+    #                     'outrosdescontos': values['codes'].get('DD', 0.0),
+    #                     'total_amount': values['total'],
+    #                     'code': values['barcode'],
+    #                     'totalderemuneracoes': total_remuneracoes,
+    #                     'totaldedescontos': total_descontos
+    #                 })
+    #                 # Atualiza o campo one2many
+    #                 # Adiciona ou atualiza as linhas agregadas sem limpar as antigas
+    #                 record.aggregated_salary_rule_lines = [(4, line_id) for line_id in aggregated_lines]
+
     @api.depends('salary_rule_line_ids', 'departamento_id')
     def _compute_aggregated_salary_rule_lines(self):
         AggregatedLine = self.env['folhapagamento.aggregated.line']
         for record in self:
+
+            record.aggregated_salary_rule_lines = [(5, 0, 0)]
+
 
             departamento_id = record.departamento_id.id if record.departamento_id else None
             group_by_employee_contract = defaultdict(lambda: {'codes': {}, 'total': 0.0, 'job_position': None})
@@ -170,7 +300,6 @@ class FolhaPagamento(models.Model):
                 if departamento_id and line.employee_id.department_id.id == departamento_id:
                     key = (line.employee_id.id, line.contract_id.id, line.employee_id.barcode,
                            line.employee_id.x_nuit, line.employee_id.x_inss)
-
                     group_by_employee_contract[key]['employee_id'] = line.employee_id.id
                     group_by_employee_contract[key]['x_nuit'] = line.employee_id.x_nuit
                     group_by_employee_contract[key]['x_inss'] = line.employee_id.x_inss
@@ -205,13 +334,8 @@ class FolhaPagamento(models.Model):
                         values['codes'].get('DFF', 0.0)
                 )
 
-                irps_amount = values['codes'].get('IRPS', 0.0)
-                if irps_amount < 0:
-                    irps_amount = -irps_amount
-
-                inss_amount = values['codes'].get('INSS', 0.0)
-                if inss_amount < 0:
-                    inss_amount = -inss_amount
+                irps_amount = abs(values['codes'].get('IRPS', 0.0))
+                inss_amount = abs(values['codes'].get('INSS', 0.0))
 
                 existing_line = AggregatedLine.search([
                     ('folhapagamento_id', '=', record.id),
@@ -220,12 +344,12 @@ class FolhaPagamento(models.Model):
                 ], limit=1)
 
                 if existing_line:
+
                     existing_line.write({
                         'basic_amount': values['codes'].get('BASIC', 0.0),
                         'inc_amount': values['codes'].get('INC', 0.0),
                         'gross_amount': values['codes'].get('GROSS', 0.0),
                         'inss_amount': values['codes'].get('INSS', 0.0),
-                        'inss_amount_positivo': inss_amount,
                         'net_amount': values['codes'].get('NET', 0.0),
                         'descontoatraso': values['codes'].get('D_P_A', 0.0),
                         'descotofaltasdias': values['codes'].get('DIS_F_D', 0.0),
@@ -234,15 +358,18 @@ class FolhaPagamento(models.Model):
                         'horasextrascem': values['codes'].get('H_E_200', 0.0),
                         'horasextrasc': values['codes'].get('H_E_150', 0.0),
                         'irps_amout': values['codes'].get('IRPS', 0.0),
-                        'irps_amout_positivo': irps_amount,
                         'outrosdescontos': values['codes'].get('DD', 0.0),
                         'total_amount': values['total'],
                         'code': values['barcode'],
                         'totalderemuneracoes': total_remuneracoes,
                         'totaldedescontos': total_descontos
                     })
+
+
                     aggregated_lines.append(existing_line.id)
                 else:
+
+
                     aggregated_line = AggregatedLine.create({
                         'folhapagamento_id': record.id,
                         'employee_id': values['employee_id'],
@@ -252,7 +379,6 @@ class FolhaPagamento(models.Model):
                         'inc_amount': values['codes'].get('INC', 0.0),
                         'gross_amount': values['codes'].get('GROSS', 0.0),
                         'inss_amount': values['codes'].get('INSS', 0.0),
-                        'inss_amount_positivo': inss_amount,
                         'net_amount': values['codes'].get('NET', 0.0),
                         'descontoatraso': values['codes'].get('D_P_A', 0.0),
                         'descotofaltasdias': values['codes'].get('DIS_F_D', 0.0),
@@ -261,19 +387,18 @@ class FolhaPagamento(models.Model):
                         'horasextrascem': values['codes'].get('H_E_200', 0.0),
                         'horasextrasc': values['codes'].get('H_E_150', 0.0),
                         'irps_amout': values['codes'].get('IRPS', 0.0),
-                        'irps_amout_positivo': irps_amount,
                         'outrosdescontos': values['codes'].get('DD', 0.0),
                         'total_amount': values['total'],
                         'code': values['barcode'],
-                        'numero_contribuinte': values['x_nuit'],
-                        'numero_beneficiario': values['x_inss'],
                         'totalderemuneracoes': total_remuneracoes,
                         'totaldedescontos': total_descontos
                     })
-                    record.aggregated_salary_rule_lines = [(4, line_id) for line_id in aggregated_lines]
-                    record.aggregated_salary_rule_lines_irps = [(4, line_id) for line_id in aggregated_lines]
-                    record.aggregated_salary_rule_lines_inss = [(4, line_id) for line_id in aggregated_lines]
 
+
+
+                    aggregated_lines.append(aggregated_line.id)
+
+            record.aggregated_salary_rule_lines = [(6, 0, aggregated_lines)]
 
 class AggregatedLine(models.Model):
     _name = 'folhapagamento.aggregated.line'
@@ -290,9 +415,6 @@ class AggregatedLine(models.Model):
     gross_amount = fields.Float(string='GROSS')
     inss_amount = fields.Float(string='INSS')
     irps_amout = fields.Float(string='IRPS')
-    irps_amout_positivo = fields.Float(string='IRPS')
-    inss_amount_positivo = fields.Float(string='INSS')
-
     net_amount = fields.Float(string='NET')
     total_amount = fields.Float(string='Total Amount')
     code = fields.Char(string='Código')
@@ -306,9 +428,6 @@ class AggregatedLine(models.Model):
 
     totalderemuneracoes = fields.Float(string=" total de remuneracoes")
     totaldedescontos = fields.Float(string=" total de descontos")
-
-    numero_contribuinte = fields.Char(string='Nº de Contribuinte')
-    numero_beneficiario = fields.Char(string='Nº de Beneficiário')
 
     def action_example_method(self):
         return {

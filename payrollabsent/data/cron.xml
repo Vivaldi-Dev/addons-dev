@@ -8,9 +8,10 @@
             <field name="code">model.ausentes()</field>
             <field name="active">True</field>
             <field name="interval_number">1</field>
-            <field name="interval_type">minutes</field>
+            <field name="interval_type">days</field>
             <field name="numbercall">-1</field>
             <field name="doall">False</field>
+            <field name="nextcall">2024-12-31 00:00:00</field>
         </record>
     </data>
 </odoo>

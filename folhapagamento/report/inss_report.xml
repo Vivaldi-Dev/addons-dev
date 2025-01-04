@@ -2,9 +2,9 @@
 <odoo>
     <template id="folhapagamento_report_IRPS">
         <t t-call="web.basic_layout">
+
             <div class="page">
                 <t t-foreach="docs" t-as="doc">
-
 
                     <table class="table" style="width: 100%; border-collapse: collapse;">
                         <tr>
@@ -37,6 +37,7 @@
                                 <th style="border: 1px solid black; padding: 8px;">Valor</th>
                             </tr>
                         </thead>
+
                         <tbody>
 
                             <tr t-foreach="sorted(doc.aggregated_salary_rule_lines, key=lambda line: line.employee_id.name)"
@@ -61,6 +62,7 @@
                             </tr>
 
                         </tbody>
+
                     </table>
                 </t>
 

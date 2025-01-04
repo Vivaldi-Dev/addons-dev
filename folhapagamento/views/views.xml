@@ -8,18 +8,15 @@
                 <header>
                     <field name="state" widget="statusbar" options="{'clickable': '1'}"/>
 
-                    <button name="action_approve" type="object" string="Aprovar"
-                            attrs="{'invisible': [('state', 'in', ['approved', 'completed', 'cancelled'])]}"
-                            class="btn-primary"/>
-                    <button name="action_complete" type="object" string="Concluir"
-                            attrs="{'invisible': [('state', 'in', ['completed', 'cancelled'])]}"
-                            class="btn-success"/>
-                    <button name="action_cancel" type="object" string="Cancelar"
-                            attrs="{'invisible': [('state', 'in', ['cancelled'])]}"
-                            class="btn-danger"/>
-
-                    <button name="action_view_report" type="object" string="Visualizar Folha de Pagamento"
-                            class="btn-primary"/>
+                                        <button name="action_approve" type="object" string="Aprovar"
+                                                attrs="{'invisible': [('state', 'in', ['approved', 'completed', 'cancelled'])]}"
+                                                class="btn-primary"/>
+                                        <button name="action_complete" type="object" string="Concluir"
+                                                attrs="{'invisible': [('state', 'in', ['completed', 'cancelled'])]}"
+                                                class="btn-success"/>
+                                        <button name="action_cancel" type="object" string="Cancelar"
+                                                attrs="{'invisible': [('state', 'in', ['cancelled'])]}"
+                                                class="btn-danger"/>
                 </header>
 
                 <sheet>
@@ -39,6 +36,7 @@
                         </group>
                     </group>
 
+
                     <notebook>
 
                         <page string="Payslip Details" attrs="{'invisible': True}">
@@ -56,7 +54,7 @@
                             <field name="aggregated_salary_rule_lines">
                                 <tree string="Detalhes Agregados de Regra Salarial">
                                     <field name="code"/>
-                                    <field name="employee_id" order="employee_id.name asc"/>
+                                    <field name="employee_id"/>
                                     <field name="job_position"/>
                                     <field name="basic_amount" string="BASIC"/>
                                     <field name="inc_amount" string="Incentivo"/>
@@ -70,45 +68,18 @@
                                     <field name="descotofaltasdias"/>
                                     <field name="outrosdescontos"/>
                                     <field name="emprestimos"/>
-                                    <field name="fundofunebre" string="Fundo Funebre"/>
+                                    <field name="fundofunebre" string="Fundo funebre"/>
                                     <field name="totaldedescontos"/>
                                     <field name="net_amount" string="NET"/>
-                                </tree>
-                            </field>
-                        </page>
 
-                        <page string="IRPS" attrs="{'invisible': [('departamento_id', '!=', False)]}">
-                            <field name="aggregated_salary_rule_lines_irps">
-                                <tree string="Detalhes Agregados de Regra Salarial">
-                                    <field name="code"/>
-                                    <field name="employee_id"/>
-                                    <field name="job_position"/>
-                                    <field name="irps_amout_positivo" string="IRPS"/>
-                                    <field name="net_amount" string="NET"/>
-                                    <field name="numero_contribuinte"/>
-                                    <field name="numero_beneficiario"/>
-                                </tree>
-                            </field>
-                        </page>
-
-                        <page string="INSS" attrs="{'invisible': [('departamento_id', '!=', False)]}">
-                            <field name="aggregated_salary_rule_lines_inss">
-                                <tree string="Detalhes Agregados de Regra Salarial">
-                                    <field name="code"/>
-                                    <field name="employee_id"/>
-                                    <field name="job_position"/>
-                                    <field name="inss_amount_positivo" string="INSS"/>
-                                    <field name="net_amount" string="NET"/>
-                                    <field name="numero_contribuinte"/>
-                                    <field name="numero_beneficiario"/>
                                 </tree>
                             </field>
                         </page>
 
                     </notebook>
 
-                </sheet>
 
+                </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids" groups="base.group_user"/>
                     <field name="activity_ids"/>
@@ -129,7 +100,6 @@
             </tree>
         </field>
     </record>
-
 
     <record id="action_folha" model="ir.actions.client">
         <field name="name">Folha Pagemnto</field>
@@ -152,7 +122,6 @@
     <menuitem name="Folha de Pagamento" id="company_menu"
               web_icon="folhapagamento,static/description/icon.png"
               action="action_folhapagamento" sequence="40"/>
-
 
 
 </odoo>

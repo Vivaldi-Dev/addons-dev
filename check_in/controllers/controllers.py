@@ -1,4 +1,7 @@
+import base64
+
 from odoo import http
+from odoo.http import Response
 from calendar import monthrange
 from odoo.http import request
 import werkzeug
@@ -68,7 +71,7 @@ class CheckIn(http.Controller):
             data = request.jsonrequest
             print(data)
             if not data:
-                return {'error': 'company is required'}
+                return {'error': 'A requisição precisa conter dados.'}
 
             company_id = data.get('company_id')
             if not company_id:
@@ -78,25 +81,51 @@ class CheckIn(http.Controller):
                     status=400
                 )
 
-            today = datetime.today().date()
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+
+            today = datetime.today()
+
+            if start_date:
+                try:
+                    start_date = datetime.fromisoformat(start_date)
+                except ValueError:
+                    return {
+                        'error': 'O campo "start_date" deve estar no formato ISO 8601 (ex.: "2025-01-01").'}
+            else:
+                start_date = datetime.combine(today, datetime.min.time())
+
+            if end_date:
+                try:
+                    end_date = datetime.fromisoformat(end_date)
+                except ValueError:
+                    return {
+                        'error': 'O campo "end_date" deve estar no formato ISO 8601 (ex.: "2025-01-05").'}
+            else:
+                end_date = datetime.combine(today, datetime.max.time())
+
+            if start_date > end_date:
+                return {'error': 'A data inicial não pode ser posterior à data final.'}
+
             domain = [('company_id', '=', int(company_id))]
             employees = request.env['hr.employee'].sudo().search(domain)
 
-            rcords = []
+            records = []
             presentes = 0
 
             for employee in employees:
                 attendance = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
-                    ('check_in', '>=', datetime.combine(today, datetime.min.time())),
-                    ('check_in', '<', datetime.combine(today, datetime.max.time()))
+                    ('check_in', '>=', start_date),
+                    ('check_in', '<=', end_date)
                 ], limit=1)
 
                 if attendance:
-                    check_in = attendance.check_in.strftime('%Y-%m-%dT%H:%M:%S') if attendance.check_in else None
-                    check_out = attendance.check_out.strftime('%Y-%m-%dT%H:%M:%S') if attendance.check_out else None
-                    rcords.append({
+                    check_in = attendance.check_in.strftime('%Y-%m-%d') if attendance.check_in else None
+                    check_out = attendance.check_out.strftime('%Y-%m-%d') if attendance.check_out else None
+                    records.append({
                         'id': employee.id,
+                        'job_position': employee.job_title,
                         'name': employee.name,
                         'check_in': check_in,
                         'check_out': check_out,
@@ -104,7 +133,7 @@ class CheckIn(http.Controller):
                     })
                     presentes += 1
 
-            return rcords
+            return records
 
         except Exception as e:
             return {'error': str(e)}
@@ -113,7 +142,6 @@ class CheckIn(http.Controller):
     @http.route('/api/monitoring/ausentes', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def ausentes(self, **kw):
         try:
-
             data = request.jsonrequest
             print(data)
             if not data:
@@ -127,7 +155,31 @@ class CheckIn(http.Controller):
                     status=400
                 )
 
-            today = datetime.today().date()
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+
+            today = datetime.today()
+
+            if start_date:
+                try:
+                    start_date = datetime.fromisoformat(start_date)
+                except ValueError:
+                    return {
+                        'error': 'O campo "start_date" deve estar no formato ISO 8601 (ex.: "2025-01-01").'}
+            else:
+                start_date = datetime.combine(today, datetime.min.time())
+
+            if end_date:
+                try:
+                    end_date = datetime.fromisoformat(end_date)
+                except ValueError:
+                    return {
+                        'error': 'O campo "end_date" deve estar no formato ISO 8601 (ex.: "2025-01-05").'}
+            else:
+                end_date = datetime.combine(today, datetime.max.time())
+
+            if start_date > end_date:
+                return {'error': 'A data inicial não pode ser posterior à data final.'}
 
             domain = [('company_id', '=', int(company_id))]
             employees = request.env['hr.employee'].sudo().search(domain)
@@ -138,14 +190,15 @@ class CheckIn(http.Controller):
             for employee in employees:
                 attendance = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
-                    ('check_in', '>=', datetime.combine(today, datetime.min.time())),
-                    ('check_in', '<', datetime.combine(today, datetime.max.time()))
+                    ('check_in', '>=', start_date),
+                    ('check_in', '<', end_date)
                 ], limit=1)
 
                 if not attendance:
                     rcords.append({
                         'id': employee.id,
                         'name': employee.name,
+                        'job_position': employee.job_title,
                         'check_in': None,
                         'check_out': None,
                         'status': 'ausente'
@@ -764,7 +817,7 @@ class CheckIn(http.Controller):
 
         return employee_data
 
-    @http.route('/api/monitoring/employee', type='json',auth='none', cors='*', csrf=False, methods=['POST'])
+    @http.route('/api/monitoring/employee', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
     def employee_by_id(self, **kw):
         try:
             data = request.jsonrequest
@@ -808,7 +861,8 @@ class CheckIn(http.Controller):
         except Exception as e:
             return {"error": f"An error occurred: {str(e)}"}
 
-    @http.route('/api/monitoring/employee/missed_days', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    @http.route('/api/monitoring/employee/missed_days', type='json', auth='none', cors='*', csrf=False,
+                methods=['POST'])
     def employee_missed_days(self, **kw):
         data = request.jsonrequest
         employee_id = data.get('employee_id')
@@ -859,14 +913,14 @@ class CheckIn(http.Controller):
 
         return response
 
-    @http.route('/api/monitoring/employee/checkin_summary', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    @http.route('/api/monitoring/employee/checkin_summary', type='json', auth='none', cors='*', csrf=False,
+                methods=['POST'])
     def employee_checkin_summary(self, **kw):
         data = request.jsonrequest
         employee_id = data.get('employee_id')
         month = data.get('month')
 
-
-        if not employee_id or not month :
+        if not employee_id or not month:
             return {"error": "Os campos 'employee_id', 'month' e 'year' são obrigatórios."}
 
         try:
@@ -914,5 +968,43 @@ class CheckIn(http.Controller):
 
         except Exception as e:
             return {"error": f"An error occurred: {str(e)}"}
+
+    @http.route('/api/data/employee/', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    def employee_data(self, **kw):
+        data = request.jsonrequest
+        employee_id = data.get('employee_id')
+        attendance_datetime = data.get('datetime')
+
+        print(data)
+
+        Notification = request.env['attendance.notification'].sudo().create({
+            'employee_id': employee_id,
+            'check_in': attendance_datetime,
+        })
+
+        return Notification
+
+    @http.route('/getimage_candidate/<int:employee_id>', type='http', auth='none', cors='*', csrf=False,
+                methods=['GET'])
+    def api_getimage_candidate(self, employee_id):
+        if not employee_id:
+            return request.make_response('{"error": "employee_id is required"}',
+                                         headers=[('Content-Type', 'application/json')])
+
+        employee = request.env['hr.employee'].sudo().search([('id', '=', int(employee_id))], limit=1)
+
+        if not employee:
+            return request.make_response('{"error": "employee_id not found"}',
+                                         headers=[('Content-Type', 'application/json')])
+
+        if employee.image_1920:
+            image_data = base64.b64decode(employee.image_1920)
+            headers = [('Content-Type', 'image/jpeg'), ('Content-Length', str(len(image_data)))]
+            return request.make_response(image_data, headers=headers)
+
+        return request.make_response('{"error": "No image found for this employee"}',
+                                     headers=[('Content-Type', 'application/json')])
+
+
 
 

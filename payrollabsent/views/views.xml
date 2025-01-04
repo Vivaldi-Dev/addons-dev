@@ -41,4 +41,6 @@
               web_icon="folhapagamento,static/description/icon.png"
               action="action_absent" sequence="50"/>
 
+
+
 </odoo>

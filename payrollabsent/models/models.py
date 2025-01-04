@@ -89,12 +89,10 @@ class HrPayslip(models.Model):
 
         inputs = self.env['hr.salary.rule'].browse(sorted_rule_ids).mapped('input_ids')
 
-        # Obter faltas, atrasos e horas extras
         faltas_por_funcionario = self.look_for_fouls(date_from, date_to)
         delays_info = self.daily_delays_check(date_from, date_to)
         overtime_info = self.daily_overtime_check(date_from, date_to)
 
-        # Agregar atrasos e horas extras por funcionário
         total_delays_by_employee = {}
         total_overtime_by_employee = {}
 
@@ -108,22 +106,21 @@ class HrPayslip(models.Model):
             overtime_minutes = overtime.get('overtime_minutes', 0)
             total_overtime_by_employee[employee_id] = total_overtime_by_employee.get(employee_id, 0) + overtime_minutes
 
-        # Processar entradas para cada contrato
+
         for contract in contracts:
             employee_id = contract.employee_id.id
 
-            # Faltas
+
             faltas = sum(1 for falta in faltas_por_funcionario if falta['id'] == employee_id)
 
-            # Atrasos
+
             total_delay_minutes = total_delays_by_employee.get(employee_id, 0)
             delay_amount = round(total_delay_minutes / 60, 2)  # Converter para horas
 
-            # Horas extras
+
             total_overtime_minutes = total_overtime_by_employee.get(employee_id, 0)
             overtime_amount = round(total_overtime_minutes / 60, 2)  # Converter para horas
 
-            # Adicionar entradas para regras salariais
             for input in inputs:
                 if input.code == 'D_P_A':
                     input_data = {
@@ -190,7 +187,6 @@ class HrPayslip(models.Model):
         return minutes
 
     def look_for_fouls(self, date_from, date_to):
-
         busca = self.env['hr.leave'].sudo().search([
             ('date_from', '>=', date_from),
             ('date_to', '<=', date_to),
@@ -204,6 +200,10 @@ class HrPayslip(models.Model):
                 'date_from': dado.date_from.strftime('%Y-%m-%d'),
                 'date_to': dado.date_to.strftime('%Y-%m-%d'),
             })
+
+
+        print(f'Período de pesquisa: {date_from} até {date_to}')
+        print(f"Quantidade de faltas: {len(dados)}")
 
         return dados
 
@@ -403,7 +403,7 @@ class PayrollAbsent(models.Model):
         current_hour = now.hour
         current_minute = now.minute
 
-        if current_hour == 7 and current_minute == 50:
+        if current_hour == 00 and current_minute == 00:
             print(f"[INFO] O método 'ausentes' foi acionado em {now}. Verificando ausências...")
 
             employees = self.env['hr.employee'].sudo().search([('id', '=', '20')])

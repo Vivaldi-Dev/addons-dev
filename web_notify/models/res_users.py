@@ -133,3 +133,15 @@ class ResUsers(models.Model):
 
         notifications = [[partner, "web.notify", [bus_message]] for partner in target]
         self.env["bus.bus"]._sendmany(notifications)
+
+    @api.model
+    def create(self, values):
+        # Chama o método padrão de criação do registro
+        new_user = super(ResUsers, self).create(values)
+
+        # Aqui você pode enviar uma notificação sempre que um novo usuário for criado
+        message = _("A new user has been created!")
+        new_user.notify_info(message=message, title=_("New User"))
+
+        return new_user
+
