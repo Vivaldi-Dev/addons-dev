@@ -34,7 +34,6 @@ class Authmodel(http.Controller):
                 "message": "Usuário não encontrado."
             }
 
-        TABLE_USER = request.env['res.users']
         user_password = TABLE_USER.sudo().search([("password", "=", password)], limit=1)
 
         if not user_password:
@@ -59,8 +58,18 @@ class Authmodel(http.Controller):
                 "message": "Não foi possível gerar o refresh token."
             }
 
-        return DlinkHelper.JsonValidResponse({
+        employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id)], limit=1)
 
+        employee_data = {
+            "employee_id": employee.id if employee else None,
+            "employee_name": employee.name if employee else None,
+            "job_position": employee.job_id.name if employee and employee.job_id else None,
+            "department": employee.department_id.name if employee and employee.department_id else None,
+            "work_phone": employee.work_phone if employee else None,
+            "work_email": employee.work_email if employee else None,
+        }
+
+        return DlinkHelper.JsonValidResponse({
             "user": {
                 "id": user.id,
                 "name": user.name,
@@ -68,10 +77,9 @@ class Authmodel(http.Controller):
                 "login": user.login,
                 "active": user.active,
             },
-
             "company_name": {
                 "id": user.company_id.id,
-                "name": user.company_name,
+                "name": user.company_id.name,
             },
             "country": {
                 "id": request.env.user.country_id.id,
@@ -79,9 +87,11 @@ class Authmodel(http.Controller):
             },
             "contact_address": user.contact_address,
 
+
+            "employee": employee_data,
+
             "access_token": access_token.token,
             "refresh_token": refresh_token.refresh,
-
         })
 
     @token_required

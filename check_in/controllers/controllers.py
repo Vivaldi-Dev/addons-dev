@@ -563,6 +563,7 @@ class CheckIn(http.Controller):
                 delays_info.append({
                     'id': row.id,
                     'employee_name': row.employee_id.name,
+                    'employee_id': row.employee_id.id,
                     'check_in': check_in.strftime('%H:%M'),
                     'expected_time': expected_time.strftime('%H:%M'),
                     'is_late': is_late,
@@ -1005,6 +1006,91 @@ class CheckIn(http.Controller):
         return request.make_response('{"error": "No image found for this employee"}',
                                      headers=[('Content-Type', 'application/json')])
 
+    @http.route('/notification/employee/', auth='none', cors='*', csrf=False, methods=['GET'])
+    def employee_notification(self, **kw):
+        records = request.env['attendance.notification'].sudo().search([])
+        info_records = []
 
+        for record in records:
+            check_in = record.check_in.strftime('%Y-%m-%d') if record.check_in else None
+            check_out = record.check_out.strftime('%Y-%m-%d') if record.check_out else None
 
+            info_records.append({
+                'employee_id': record.employee_id.id,
+                'name': record.employee_id.name,
+                'check_in': check_in,
+                'check_out': check_out,
+                'is_read': record.is_read,
+            })
 
+        return werkzeug.wrappers.Response(json.dumps(info_records), headers=[('Content-Type', 'application/json')])
+
+    @http.route('/api/report/overtime', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    def overtime(self, **kw):
+        data = request.jsonrequest
+        company_id = data.get('company_id')
+        report_type = data.get('report_type', 'daily')
+        date_str = data.get('date')
+
+        if not company_id or not date_str:
+            return {'error': 'Company ID and date are required'}
+
+        date = datetime.strptime(date_str, '%Y-%m-%d')
+
+        if report_type == 'daily':
+            start_date = date
+            end_date = date
+        elif report_type == 'weekly':
+            start_date = date - timedelta(days=date.weekday())
+            end_date = start_date + timedelta(days=6)
+        elif report_type == 'monthly':
+            start_date = date.replace(day=1)
+            end_date = (start_date + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        else:
+            return {'error': 'Invalid report type'}
+
+        employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+        total_employees = len(employees)
+
+        attendances = request.env['hr.attendance'].sudo().search([
+            ('employee_id', 'in', employees.ids),
+            ('check_in', '>=', start_date),
+            ('check_in', '<=', end_date)
+        ])
+
+        present_employee_ids = attendances.mapped('employee_id.id')
+        total_present = len(present_employee_ids)
+        total_absent = total_employees - total_present
+
+        present_employees = []
+        absent_employees = []
+
+        for employee in employees:
+            if employee.id in present_employee_ids:
+                present_employees.append({
+                    'id': employee.id,
+                    'name': employee.name
+                })
+            else:
+                absent_employees.append({
+                    'id': employee.id,
+                    'name': employee.name
+                })
+
+        report_data = {
+            'company_id': company_id,
+            'report_type': report_type,
+            'date_range': {
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': end_date.strftime('%Y-%m-%d')
+            },
+            'counts': {
+                'total_employees': total_employees,
+                'total_present': total_present,
+                'total_absent': total_absent
+            },
+            'present_employees': present_employees,
+            'absent_employees': absent_employees
+        }
+
+        return report_data

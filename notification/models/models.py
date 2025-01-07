@@ -29,6 +29,8 @@ class AttendanceNotification(models.Model):
     event_date = fields.Datetime(string="Event Date")
     check_in = fields.Datetime(string="Check-in")
     check_out = fields.Datetime(string="Check-out")
+    department_id = fields.Many2one('hr.department', string="Department")
+    company_id = fields.Many2one('res.company', string="Company")
 
     def mark_as_read(self):
         """Marks the notification as read."""

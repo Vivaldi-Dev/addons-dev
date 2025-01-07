@@ -10,72 +10,27 @@ class HrPayslip(models.Model):
 
     payrollabsent_id = fields.Many2one('payrollabsent.payrollabsent', string='Ausências')
 
-    def compute_sheet(self):
-
-        for payslip in self:
-            number = payslip.number or self.env['ir.sequence'].next_by_code('salary.slip')
-            # delete old payslip lines
-            payslip.line_ids.unlink()
-            # set the list of contract for which the rules have to be applied
-            # if we don't give the contract, then the rules to apply should be for all current contracts of the employee
-            contract_ids = payslip.contract_id.ids or \
-                           self.get_contract(payslip.employee_id, payslip.date_from, payslip.date_to)
-            lines = [(0, 0, line) for line in self._get_payslip_lines(contract_ids, payslip.id)]
-            payslip.write({'line_ids': lines, 'number': number})
-        return True
-
-    @api.model
-    def get_worked_day_lines(self, contracts, date_from, date_to):
-        """
-        @param contract: Browse record of contracts
-        @return: returns a list of dict containing the input that should be applied for the given contract between date_from and date_to
-        """
+    @api.onchange('struct_id')
+    def _onchange_struct_id(self):
         res = []
+        self.input_line_ids = [(5, 0, 0)]  # Limpar os registros antigos
+        if self.struct_id:
+            rule_ids = self.env['hr.payroll.structure'].browse(self.struct_id.id).get_all_rules()
+            sorted_rule_ids = [id for id, sequence in sorted(rule_ids, key=lambda x: x[1])]
+            inputs = self.env['hr.salary.rule'].browse(sorted_rule_ids).mapped('input_ids')
 
-        for contract in contracts.filtered(lambda contract: contract.resource_calendar_id):
-            day_from = datetime.combine(fields.Date.from_string(date_from), time.min)
-            day_to = datetime.combine(fields.Date.from_string(date_to), time.max)
+            # Corrigir o acesso ao 'code' dentro de um loop
+            for input in inputs:
+                print(f"Input code: {input.code}")
+                input_data = {
+                    'name': input.name,
+                    'code': input.code,
+                    'contract_id': self.contract_id.id,
+                }
 
-            leaves = {}
-            calendar = contract.resource_calendar_id
-            tz = timezone(calendar.tz)
-            day_leave_intervals = contract.employee_id.list_leaves(day_from, day_to,
-                                                                   calendar=contract.resource_calendar_id)
-            for day, hours, leave in day_leave_intervals:
-                holiday = leave.holiday_id
-                # print(f"Holiday ID: {holiday.holiday_status_id}")
-                current_leave_struct = leaves.setdefault(holiday.holiday_status_id, {
-                    'name': holiday.holiday_status_id.name or _('Global Leaves'),
-                    'sequence': 5,
-                    'code': holiday.holiday_status_id.code or 'GLOBAL',
-                    'number_of_days': 0.0,
-                    'number_of_hours': 0.0,
-                    'contract_id': contract.id,
-                })
-                current_leave_struct['number_of_hours'] += hours
-                work_hours = calendar.get_work_hours_count(
-                    tz.localize(datetime.combine(day, time.min)),
-                    tz.localize(datetime.combine(day, time.max)),
-                    compute_leaves=False,
-                )
-                if work_hours:
-                    current_leave_struct['number_of_days'] += hours / work_hours
+                res.append((0, 0, input_data))
 
-            work_data = contract.employee_id.get_work_days_data(day_from, day_to,
-                                                                calendar=contract.resource_calendar_id)
-            attendances = {
-                'name': _("Normal Working Days paid at 100%"),
-                'sequence': 1,
-                'code': 'WORK100',
-                'number_of_days': work_data['days'],
-                'number_of_hours': work_data['hours'],
-                'contract_id': contract.id,
-            }
-
-            res.append(attendances)
-            res.extend(leaves.values())
-
-        return res
+        self.input_line_ids = res
 
     def get_inputs(self, contracts, date_from, date_to):
         """
@@ -106,20 +61,16 @@ class HrPayslip(models.Model):
             overtime_minutes = overtime.get('overtime_minutes', 0)
             total_overtime_by_employee[employee_id] = total_overtime_by_employee.get(employee_id, 0) + overtime_minutes
 
-
         for contract in contracts:
             employee_id = contract.employee_id.id
 
-
             faltas = sum(1 for falta in faltas_por_funcionario if falta['id'] == employee_id)
 
-
             total_delay_minutes = total_delays_by_employee.get(employee_id, 0)
-            delay_amount = round(total_delay_minutes / 60, 2)  # Converter para horas
-
+            delay_amount = round(total_delay_minutes / 60, 2)
 
             total_overtime_minutes = total_overtime_by_employee.get(employee_id, 0)
-            overtime_amount = round(total_overtime_minutes / 60, 2)  # Converter para horas
+            overtime_amount = round(total_overtime_minutes / 60, 2)
 
             for input in inputs:
                 if input.code == 'D_P_A':
@@ -144,10 +95,10 @@ class HrPayslip(models.Model):
                     input_data = {
                         'name': input.name,
                         'code': input.code,
-                        'amount': overtime_until_20h / 60,  # Converter para horas
+                        'amount': overtime_until_20h / 60,
                         'contract_id': contract.id,
                     }
-                elif input.code == 'H_E_200':  # Código de horas extras após 20h
+                elif input.code == 'H_E_200':
                     overtime_after_20h = sum(
                         self.convert_time_to_minutes(overtime.get('overtime_after_20h', '0 min'))
                         for overtime in overtime_info if overtime['id'] == employee_id
@@ -155,7 +106,7 @@ class HrPayslip(models.Model):
                     input_data = {
                         'name': input.name,
                         'code': input.code,
-                        'amount': overtime_after_20h / 60,  # Converter para horas
+                        'amount': overtime_after_20h / 60,
                         'contract_id': contract.id,
                     }
                 else:
@@ -201,9 +152,8 @@ class HrPayslip(models.Model):
                 'date_to': dado.date_to.strftime('%Y-%m-%d'),
             })
 
-
-        print(f'Período de pesquisa: {date_from} até {date_to}')
-        print(f"Quantidade de faltas: {len(dados)}")
+        # print(f'Período de pesquisa: {date_from} até {date_to}')
+        # print(f"Quantidade de faltas: {len(dados)}")
 
         return dados
 
@@ -260,13 +210,12 @@ class HrPayslip(models.Model):
                 'delay': delay_minutes
             })
 
-        print(
-            f"Total de dias de atraso no intervalo {date_from} até {date_to}: {total_delay_days} dias")  # Exibe o total de dias com atraso
+        # print(f"Total de dias de atraso no intervalo {date_from} até {date_to}: {total_delay_days} dias")
 
         return delays_info
 
     def daily_overtime_check(self, date_from, date_to):
-        print(f"Chamando daily_overtime_check de {date_from} até {date_to}")
+        # print(f"Chamando daily_overtime_check de {date_from} até {date_to}")
 
         employees = self.env['hr.employee'].sudo().search([])
         overtime_info = []
@@ -355,9 +304,7 @@ class HrPayslip(models.Model):
                     'overtime_after_20h': overtime_part2_str
                 })
 
-        print(f"Resultado da verificação de horas extras: {overtime_info}")
         return overtime_info
-
 
 class PayrollAbsent(models.Model):
     _name = 'payrollabsent.payrollabsent'
@@ -404,7 +351,7 @@ class PayrollAbsent(models.Model):
         current_minute = now.minute
 
         if current_hour == 00 and current_minute == 00:
-            print(f"[INFO] O método 'ausentes' foi acionado em {now}. Verificando ausências...")
+            # print(f"[INFO] O método 'ausentes' foi acionado em {now}. Verificando ausências...")
 
             employees = self.env['hr.employee'].sudo().search([('id', '=', '20')])
             for employee in employees:
@@ -414,7 +361,7 @@ class PayrollAbsent(models.Model):
                 ], limit=1)
 
                 if not attendance:
-                    print(f"[INFO] Funcionário {employee.name} ausente (sem check-in). Criando registro de ausência...")
+                    # print(f"[INFO] Funcionário {employee.name} ausente (sem check-in). Criando registro de ausência...")
 
                     self.env['hr.leave'].sudo().create({
                         'holiday_status_id': 7,
@@ -427,7 +374,7 @@ class PayrollAbsent(models.Model):
                         'duration_display': 1.0,
                     })
 
-                    print(f"[INFO] Ausência registrada para o funcionário {employee.name}.")
+                    # print(f"[INFO] Ausência registrada para o funcionário {employee.name}.")
                 else:
                     print(f"[INFO] Funcionário {employee.name} presente (check-in encontrado).")
         else:
