@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <template id="recibo_report_INSS" name="Relatório INSS txt">
+        <t t-foreach="docs" t-as="doc">
+            <t t-foreach="doc.linhas_agregadas" t-as="linha">
+                <t t-esc="'%s;%s;%s;;' % (linha.numero_beneficiario or '', linha.basic_amount or '', linha.inc_amount or '')"/>
+            </t>
+        </t>
+    </template>
+
+</odoo>

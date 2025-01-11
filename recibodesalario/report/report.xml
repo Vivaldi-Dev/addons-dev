@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 
 <odoo>
+
     <report
             id="recibo_report"
             string="Recibo de Salario"
@@ -10,6 +11,36 @@
             file="recibodesalario.recibo_report_template"
             print_report_name=" 'Recibo Salarial - %s' % (object.descricao or 'Relatório')"
 
+    />
+
+    <report
+            id="recibodesalario_report_excel"
+            string="Bank Report excel"
+            model="recibo.recibo"
+            report_type="xlsx"
+            name="recibodesalario.recibo_report_xls"
+            file="recibodesalario.recibo_report_xls"
+            print_report_name="'Bank Report- %s' % (object.descricao or 'Relatório')"
+    />
+
+    <report
+            id="recibo_report_irps"
+            string="IRPS"
+            model="recibo.recibo"
+            report_type="qweb-pdf"
+            name="recibodesalario.recibo_report_IRPS"
+            file="recibodesalario.recibo_report_IRPS"
+            print_report_name="'Mapa de IRPS - %s' % (object.descricao or 'Mapa de IRPS')"
+    />
+
+    <report
+            id="recibo_report_inss"
+            string="INSS txt"
+            model="recibo.recibo"
+            report_type="qweb-text"
+            name="recibodesalario.recibo_report_INSS"
+            file="recibodesalario.recibo_report_INSS"
+            print_report_name="'Mapa de INSS - %s' % (object.descricao or 'Mapa de INSS')"
     />
 
 

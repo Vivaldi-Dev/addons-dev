@@ -20,7 +20,7 @@
                         </td>
 
                         <!-- Información de la Empresa -->
-                        <td style="width: 30%; border: 1px solid black; padding: 10px; text-align: center; font-size: 12px;">
+                        <td style="width: 30%; border: 1px solid black; padding: 10px; text-align: end; font-size: 12px;">
                             <p class="mb-0" style="font-weight: bold;">Empresa:
                                 <span t-esc="doc.company_id.name"/>
                             </p>
@@ -117,10 +117,12 @@
                                 <t t-esc="round(line.inss_amount, 2)"/>
                                 <t t-set="total_inss" t-value="total_inss + line.inss_amount"/>
                             </td>
+
                             <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
                                 <t t-esc="round(line.irps_amout, 2)"/>
                                 <t t-set="total_irps" t-value="total_irps + line.irps_amout"/>
                             </td>
+
                             <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px; white-space: nowrap;">
                                 <t t-esc="round(line.descontoatraso, 2)"/>
                                 <t t-set="total_atrasos" t-value="total_atrasos + line.descontoatraso"/>

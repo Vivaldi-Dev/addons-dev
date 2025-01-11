@@ -114,7 +114,8 @@ class ZKTecoController(http.Controller):
             message_data = {
                 'employee_id': employee_id,
                 'attendance_datetime': attendance_datetime,
-                'status': 'Check In'
+                'status': 'Check In',
+                'employee_name': employee_name,
             }
 
             _logger.info(f"Enviando mensagem para o WebSocket: {message_data}")

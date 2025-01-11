@@ -11,11 +11,13 @@
                         <group>
                             <field name="descricao"/>
                             <field name="mes"/>
+                            <field name="year"/>
                         </group>
 
                         <group>
                            <field name="empresa_id"/>
                             <field name="employee_id"/>
+                            <field name="departamento_id"/>
 
                         </group>
                     </group>
@@ -39,20 +41,12 @@
                                     <field name="code"/>
                                     <field name="employee_id" order="employee_id.name asc"/>
                                     <field name="job_position"/>
+                                     <field name="bank_name"/>
+                                    <field name="bank_account_number"/>
                                     <field name="basic_amount" string="BASIC"/>
-                                    <field name="inc_amount" string="Incentivo"/>
                                     <field name="gross_amount" string="GROSS"/>
-                                    <field name="horasextrascem"/>
-                                    <field name="horasextrasc"/>
-                                    <field name="totalderemuneracoes"/>
                                     <field name="inss_amount" string="INSS"/>
                                     <field name="irps_amout" string="IRPS"/>
-                                    <field name="descontoatraso"/>
-                                    <field name="descotofaltasdias"/>
-                                    <field name="outrosdescontos"/>
-                                    <field name="emprestimos"/>
-                                    <field name="fundofunebre" string="Fundo Funebre"/>
-                                    <field name="totaldedescontos"/>
                                     <field name="net_amount" string="NET"/>
                                 </tree>
                             </field>
@@ -91,4 +85,12 @@
 
     <menuitem name="Recibo Salarial" id="recibo_salarial"
           parent="folhapagamento.company_menu" action="action_recibo" sequence="0"/>
+
+    <menuitem id="menu_payroll"
+              name="Relatorios"
+              parent="hr_payroll_community.menu_hr_payroll_community_root"
+              sequence="101"
+              action="action_recibo"
+    />
+
 </odoo>

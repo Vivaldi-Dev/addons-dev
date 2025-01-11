@@ -10,28 +10,6 @@ class HrPayslip(models.Model):
 
     payrollabsent_id = fields.Many2one('payrollabsent.payrollabsent', string='Ausências')
 
-    @api.onchange('struct_id')
-    def _onchange_struct_id(self):
-        res = []
-        self.input_line_ids = [(5, 0, 0)]  # Limpar os registros antigos
-        if self.struct_id:
-            rule_ids = self.env['hr.payroll.structure'].browse(self.struct_id.id).get_all_rules()
-            sorted_rule_ids = [id for id, sequence in sorted(rule_ids, key=lambda x: x[1])]
-            inputs = self.env['hr.salary.rule'].browse(sorted_rule_ids).mapped('input_ids')
-
-            # Corrigir o acesso ao 'code' dentro de um loop
-            for input in inputs:
-                print(f"Input code: {input.code}")
-                input_data = {
-                    'name': input.name,
-                    'code': input.code,
-                    'contract_id': self.contract_id.id,
-                }
-
-                res.append((0, 0, input_data))
-
-        self.input_line_ids = res
-
     def get_inputs(self, contracts, date_from, date_to):
         """
         Gera os dados de entrada para os contratos com base em atrasos, faltas e horas extras
@@ -44,9 +22,9 @@ class HrPayslip(models.Model):
 
         inputs = self.env['hr.salary.rule'].browse(sorted_rule_ids).mapped('input_ids')
 
-        faltas_por_funcionario = self.look_for_fouls(date_from, date_to)
-        delays_info = self.daily_delays_check(date_from, date_to)
-        overtime_info = self.daily_overtime_check(date_from, date_to)
+        faltas_por_funcionario = self._look_for_fouls(date_from, date_to)
+        delays_info = self._daily_delays_check(date_from, date_to)
+        overtime_info = self._daily_overtime_check(date_from, date_to)
 
         total_delays_by_employee = {}
         total_overtime_by_employee = {}
@@ -73,55 +51,59 @@ class HrPayslip(models.Model):
             overtime_amount = round(total_overtime_minutes / 60, 2)
 
             for input in inputs:
-                if input.code == 'D_P_A':
-                    input_data = {
-                        'name': input.name,
-                        'code': input.code,
-                        'amount': delay_amount,
-                        'contract_id': contract.id,
-                    }
-                elif input.code == 'TO_F_D':
-                    input_data = {
-                        'name': input.name,
-                        'code': input.code,
-                        'amount': faltas,
-                        'contract_id': contract.id,
-                    }
-                elif input.code == 'H_E_150':
-                    overtime_until_20h = sum(
-                        self.convert_time_to_minutes(overtime.get('overtime_until_20h', '0 min'))
-                        for overtime in overtime_info if overtime['id'] == employee_id
-                    )
-                    input_data = {
-                        'name': input.name,
-                        'code': input.code,
-                        'amount': overtime_until_20h / 60,
-                        'contract_id': contract.id,
-                    }
-                elif input.code == 'H_E_200':
-                    overtime_after_20h = sum(
-                        self.convert_time_to_minutes(overtime.get('overtime_after_20h', '0 min'))
-                        for overtime in overtime_info if overtime['id'] == employee_id
-                    )
-                    input_data = {
-                        'name': input.name,
-                        'code': input.code,
-                        'amount': overtime_after_20h / 60,
-                        'contract_id': contract.id,
-                    }
-                else:
-                    input_data = {
-                        'name': input.name,
-                        'code': input.code,
-                        'amount': 0,
-                        'contract_id': contract.id,
-                    }
-
-                res.append(input_data)
+                input_data = self._get_input_data(input, employee_id, delay_amount, faltas, overtime_info)
+                if input_data:
+                    res.append(input_data)
 
         return res
 
-    def convert_time_to_minutes(self, time_str):
+    def _get_input_data(self, input, employee_id, delay_amount, faltas, overtime_info):
+        """Auxilia na geração dos dados de entrada baseados no código do input"""
+        if input.code == 'D_P_A':
+            return {
+                'name': input.name,
+                'code': input.code,
+                'amount': delay_amount,
+                'contract_id': employee_id,
+            }
+        elif input.code == 'TO_F_D':
+            return {
+                'name': input.name,
+                'code': input.code,
+                'amount': faltas,
+                'contract_id': employee_id,
+            }
+        elif input.code == 'H_E_150':
+            overtime_until_20h = sum(
+                self._convert_time_to_minutes(overtime.get('overtime_until_20h', '0 min'))
+                for overtime in overtime_info if overtime['id'] == employee_id
+            )
+            return {
+                'name': input.name,
+                'code': input.code,
+                'amount': overtime_until_20h / 60,
+                'contract_id': employee_id,
+            }
+        elif input.code == 'H_E_200':
+            overtime_after_20h = sum(
+                self._convert_time_to_minutes(overtime.get('overtime_after_20h', '0 min'))
+                for overtime in overtime_info if overtime['id'] == employee_id
+            )
+            return {
+                'name': input.name,
+                'code': input.code,
+                'amount': overtime_after_20h / 60,
+                'contract_id': employee_id,
+            }
+        else:
+            return {
+                'name': input.name,
+                'code': input.code,
+                'amount': 0,
+                'contract_id': employee_id,
+            }
+
+    def _convert_time_to_minutes(self, time_str):
         """Converte uma string de tempo como '3h', '30 min', '1h 30 min' em minutos."""
         time_str = time_str.lower()
         minutes = 0
@@ -137,7 +119,8 @@ class HrPayslip(models.Model):
 
         return minutes
 
-    def look_for_fouls(self, date_from, date_to):
+    def _look_for_fouls(self, date_from, date_to):
+        """Busca as faltas dos funcionários no intervalo de datas fornecido."""
         busca = self.env['hr.leave'].sudo().search([
             ('date_from', '>=', date_from),
             ('date_to', '<=', date_to),
@@ -152,22 +135,16 @@ class HrPayslip(models.Model):
                 'date_to': dado.date_to.strftime('%Y-%m-%d'),
             })
 
-        # print(f'Período de pesquisa: {date_from} até {date_to}')
-        # print(f"Quantidade de faltas: {len(dados)}")
-
         return dados
 
-    @api.model
-    def daily_delays_check(self, date_from, date_to):
-
+    def _daily_delays_check(self, date_from, date_to):
+        """Verifica atrasos dos funcionários no intervalo de datas fornecido."""
         records = self.env['hr.attendance'].sudo().search([
             ('check_in', '>=', date_from),
             ('check_in', '<=', date_to)
         ])
 
         delays_info = []
-        total_delay_days = 0
-
         for row in records:
             check_in = row.check_in
             if not check_in:
@@ -199,8 +176,6 @@ class HrPayslip(models.Model):
                 delay_delta = check_in_datetime - expected_datetime
                 delay_minutes = delay_delta.total_seconds() / 60
 
-                total_delay_days += 1
-
             delays_info.append({
                 'id': row.employee_id.id,
                 'employee_name': row.employee_id.name,
@@ -210,13 +185,10 @@ class HrPayslip(models.Model):
                 'delay': delay_minutes
             })
 
-        # print(f"Total de dias de atraso no intervalo {date_from} até {date_to}: {total_delay_days} dias")
-
         return delays_info
 
-    def daily_overtime_check(self, date_from, date_to):
-        # print(f"Chamando daily_overtime_check de {date_from} até {date_to}")
-
+    def _daily_overtime_check(self, date_from, date_to):
+        """Verifica horas extras dos funcionários no intervalo de datas fornecido."""
         employees = self.env['hr.employee'].sudo().search([])
         overtime_info = []
 
@@ -257,10 +229,9 @@ class HrPayslip(models.Model):
 
                 is_overtime = check_out_time > expected_time
 
-                overtime_str = "0 min"
+                total_overtime_minutes = 0
                 overtime_part1_str = "0 min"
                 overtime_part2_str = "0 min"
-                total_overtime_minutes = 0
 
                 if is_overtime:
                     check_out_datetime = datetime.combine(check_out_date, check_out_time)
@@ -282,16 +253,6 @@ class HrPayslip(models.Model):
                         overtime_after_20_minutes = overtime_after_20.total_seconds() / 60
                         overtime_part2_str = f"{int(overtime_after_20_minutes)} min" if overtime_after_20_minutes < 60 else f"{int(overtime_after_20_minutes // 60)}h"
                         total_overtime_minutes += overtime_after_20_minutes
-
-                    if total_overtime_minutes >= 60:
-                        overtime_hours = total_overtime_minutes // 60
-                        remaining_minutes = total_overtime_minutes % 60
-                        if remaining_minutes > 0:
-                            overtime_str = f"{int(overtime_hours)} h {int(remaining_minutes)} min"
-                        else:
-                            overtime_str = f"{int(overtime_hours)} h"
-                    else:
-                        overtime_str = f"{int(total_overtime_minutes)} min"
 
                 overtime_info.append({
                     'id': row.employee_id.id,
@@ -349,7 +310,14 @@ class PayrollAbsent(models.Model):
         now = datetime.now()
         current_hour = now.hour
         current_minute = now.minute
+        current_weekday = now.weekday()  # 0=Segunda, 6=Domingo
 
+        # Verificar se é domingo (weekday == 6)
+        if current_weekday == 6:
+            print(f"[INFO] O método 'ausentes' não foi acionado porque é domingo. Hora atual: {now}.")
+            return  # Não faz nada aos domingos
+
+        # Verificar se é meia-noite
         if current_hour == 00 and current_minute == 00:
             # print(f"[INFO] O método 'ausentes' foi acionado em {now}. Verificando ausências...")
 

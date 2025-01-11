@@ -88,32 +88,34 @@ class CheckIn(http.Controller):
 
             if start_date:
                 try:
-                    start_date = datetime.fromisoformat(start_date)
+                    start_date = datetime.strptime(start_date, '%Y-%m-%d')
                 except ValueError:
                     return {
-                        'error': 'O campo "start_date" deve estar no formato ISO 8601 (ex.: "2025-01-01").'}
+                        'error': 'O campo "start_date" deve estar no formato "YYYY-MM-DD" (ex.: "2025-01-01").'}
             else:
                 start_date = datetime.combine(today, datetime.min.time())
 
             if end_date:
                 try:
-                    end_date = datetime.fromisoformat(end_date)
+                    end_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1, seconds=-1)
                 except ValueError:
                     return {
-                        'error': 'O campo "end_date" deve estar no formato ISO 8601 (ex.: "2025-01-05").'}
+                        'error': 'O campo "end_date" deve estar no formato "YYYY-MM-DD" (ex.: "2025-01-05").'}
             else:
                 end_date = datetime.combine(today, datetime.max.time())
 
             if start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            domain = [('company_id', '=', int(company_id))]
-            employees = request.env['hr.employee'].sudo().search(domain)
+            # Filtra todos os funcionários da empresa
+            employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
+            total_employees = len(employees)
 
             records = []
             presentes = 0
 
             for employee in employees:
+                # Verifica se há registro de presença para o funcionário no período especificado
                 attendance = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', start_date),
@@ -121,8 +123,8 @@ class CheckIn(http.Controller):
                 ], limit=1)
 
                 if attendance:
-                    check_in = attendance.check_in.strftime('%Y-%m-%d') if attendance.check_in else None
-                    check_out = attendance.check_out.strftime('%Y-%m-%d') if attendance.check_out else None
+                    check_in = attendance.check_in.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_in else None
+                    check_out = attendance.check_out.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_out else None
                     records.append({
                         'id': employee.id,
                         'job_position': employee.job_title,
@@ -133,7 +135,11 @@ class CheckIn(http.Controller):
                     })
                     presentes += 1
 
-            return records
+            return {
+                'total_employees': total_employees,
+                'total_presentes': presentes,
+                'records': records
+            }
 
         except Exception as e:
             return {'error': str(e)}
@@ -158,44 +164,39 @@ class CheckIn(http.Controller):
             start_date = data.get('start_date')
             end_date = data.get('end_date')
 
-            today = datetime.today()
-
             if start_date:
                 try:
-                    start_date = datetime.fromisoformat(start_date)
+                    start_date = datetime.strptime(start_date, '%Y-%m-%d')
                 except ValueError:
                     return {
-                        'error': 'O campo "start_date" deve estar no formato ISO 8601 (ex.: "2025-01-01").'}
-            else:
-                start_date = datetime.combine(today, datetime.min.time())
-
+                        'error': 'O campo "start_date" deve estar no formato "YYYY-MM-DD" (ex.: "2025-01-01").'}
             if end_date:
                 try:
-                    end_date = datetime.fromisoformat(end_date)
+                    end_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1, seconds=-1)
                 except ValueError:
                     return {
-                        'error': 'O campo "end_date" deve estar no formato ISO 8601 (ex.: "2025-01-05").'}
-            else:
-                end_date = datetime.combine(today, datetime.max.time())
+                        'error': 'O campo "end_date" deve estar no formato "YYYY-MM-DD" (ex.: "2025-01-05").'}
 
-            if start_date > end_date:
+            if start_date and end_date and start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            domain = [('company_id', '=', int(company_id))]
-            employees = request.env['hr.employee'].sudo().search(domain)
+            # Busca todos os funcionários da empresa
+            employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
+            total_employees = len(employees)  # Total de funcionários
 
-            rcords = []
+            records = []
             ausentes = 0
 
             for employee in employees:
+                # Verifica se o funcionário tem presença no período especificado
                 attendance = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
-                    ('check_in', '>=', start_date),
-                    ('check_in', '<', end_date)
+                    ('check_in', '>=', start_date) if start_date else (),
+                    ('check_in', '<', end_date) if end_date else ()
                 ], limit=1)
 
                 if not attendance:
-                    rcords.append({
+                    records.append({
                         'id': employee.id,
                         'name': employee.name,
                         'job_position': employee.job_title,
@@ -205,14 +206,14 @@ class CheckIn(http.Controller):
                     })
                     ausentes += 1
 
-            return rcords
+            return {
+                'total_employees': total_employees,
+                'total_ausentes': ausentes,
+                'records': records
+            }
 
         except Exception as e:
-            return werkzeug.wrappers.Response(
-                json.dumps({'error': str(e)}),
-                headers=[('Content-Type', 'application/json')],
-                status=500
-            )
+            return {'error': str(e)}
 
     @http.route('/api/monitoring/percentages', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def percentages(self, **kw):
@@ -537,15 +538,22 @@ class CheckIn(http.Controller):
                 check_in_time = check_in.time()
                 expected_time = (datetime.min + timedelta(hours=attendance.hour_from)).time()
 
-                is_late = check_in_time > expected_time
+                # Adicionando a tolerância de 10 minutos
+                tolerance_time = timedelta(minutes=10)
+                expected_time_with_tolerance = datetime.combine(today, expected_time) + tolerance_time
+                expected_time_with_tolerance = expected_time_with_tolerance.time()
 
+                # Verificar se o funcionário está atrasado
+                is_late = check_in_time > expected_time_with_tolerance
+
+                # Se o funcionário não estiver atrasado, ignoramos
                 if not is_late:
                     continue
 
                 delay_str = "0 min"
                 if is_late:
                     check_in_datetime = datetime.combine(today, check_in_time)
-                    expected_datetime = datetime.combine(today, expected_time)
+                    expected_datetime = datetime.combine(today, expected_time_with_tolerance)
 
                     delay_delta = check_in_datetime - expected_datetime
                     delay_minutes = delay_delta.total_seconds() / 60
@@ -560,13 +568,13 @@ class CheckIn(http.Controller):
                     else:
                         delay_str = f"{int(delay_minutes)} min"
 
+                # Adiciona apenas os atrasos
                 delays_info.append({
                     'id': row.id,
                     'employee_name': row.employee_id.name,
                     'employee_id': row.employee_id.id,
                     'check_in': check_in.strftime('%H:%M'),
                     'expected_time': expected_time.strftime('%H:%M'),
-                    'is_late': is_late,
                     'delay': delay_str
                 })
 
@@ -735,7 +743,6 @@ class CheckIn(http.Controller):
 
     @http.route('/api/all/employees', type='json', auth='none', methods=['POST'], csrf=False)
     def all_employee(self):
-
         company_id = request.httprequest.args.get('company_id')
         employee_id = request.httprequest.args.get('id')
         employee_name = request.httprequest.args.get('name')
@@ -759,6 +766,10 @@ class CheckIn(http.Controller):
                 'name': employee.name,
                 'email': employee.user_id.login,
                 'x_ativo': employee.x_ativo,
+                'address_home_id': employee.address_home_id.bank_ids[
+                    0].bank_id.name if employee.address_home_id.bank_ids else False,
+                'address_cc_id': employee.address_home_id.bank_ids[
+                    0].acc_number if employee.address_home_id.bank_ids else False,
             }
             for employee in employees
         ]
@@ -844,12 +855,12 @@ class CheckIn(http.Controller):
                 ('check_in', '<', datetime(next_month_year, next_month, 1))
             ])
 
+            # Formatar datas para o formato 'YYYY-MM-DD'
             attendance_info = [{
-                'check_in': record.check_in.isoformat() if record.check_in else None,
-                'check_out': record.check_out.isoformat() if record.check_out else None
+                'check_in': record.check_in.strftime('%Y-%m-%d') if record.check_in else None,
+                'check_out': record.check_out.strftime('%Y-%m-%d') if record.check_out else None
             } for record in attendance_records]
 
-            # Construir a resposta
             employee_info = {
                 'id': employee.id,
                 'name': employee.name,
@@ -917,6 +928,7 @@ class CheckIn(http.Controller):
     @http.route('/api/monitoring/employee/checkin_summary', type='json', auth='none', cors='*', csrf=False,
                 methods=['POST'])
     def employee_checkin_summary(self, **kw):
+
         data = request.jsonrequest
         employee_id = data.get('employee_id')
         month = data.get('month')
@@ -1029,25 +1041,27 @@ class CheckIn(http.Controller):
     def overtime(self, **kw):
         data = request.jsonrequest
         company_id = data.get('company_id')
-        report_type = data.get('report_type', 'daily')
-        date_str = data.get('date')
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
 
-        if not company_id or not date_str:
-            return {'error': 'Company ID and date are required'}
+        if not company_id or not start_date_str or not end_date_str:
+            return {'error': 'Company ID, start_date, and end_date are required'}
 
-        date = datetime.strptime(date_str, '%Y-%m-%d')
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+        except ValueError:
+            return {'error': 'Invalid date format. Use YYYY-MM-DD'}
 
-        if report_type == 'daily':
-            start_date = date
-            end_date = date
-        elif report_type == 'weekly':
-            start_date = date - timedelta(days=date.weekday())
-            end_date = start_date + timedelta(days=6)
-        elif report_type == 'monthly':
-            start_date = date.replace(day=1)
-            end_date = (start_date + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-        else:
-            return {'error': 'Invalid report type'}
+        if start_date > end_date:
+            return {'error': 'start_date cannot be greater than end_date'}
+
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+
+        if start_date.year == current_year and end_date.year == current_year:
+            if end_date.month > current_month:
+                return {'error': 'You cannot request a report for future months in the current year'}
 
         employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
         total_employees = len(employees)
@@ -1055,7 +1069,7 @@ class CheckIn(http.Controller):
         attendances = request.env['hr.attendance'].sudo().search([
             ('employee_id', 'in', employees.ids),
             ('check_in', '>=', start_date),
-            ('check_in', '<=', end_date)
+            ('check_in', '<=', end_date + timedelta(days=1))
         ])
 
         present_employee_ids = attendances.mapped('employee_id.id')
@@ -1079,7 +1093,6 @@ class CheckIn(http.Controller):
 
         report_data = {
             'company_id': company_id,
-            'report_type': report_type,
             'date_range': {
                 'start_date': start_date.strftime('%Y-%m-%d'),
                 'end_date': end_date.strftime('%Y-%m-%d')
@@ -1094,3 +1107,29 @@ class CheckIn(http.Controller):
         }
 
         return report_data
+
+    @http.route('/api/notification/read', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    def set_notification_read(self, **kw):
+        data = request.jsonrequest
+        notification_id = data.get('notification_id')
+        is_read = data.get('is_read', False)
+
+        if not notification_id:
+
+            return {'error': 'Notification ID is required'}
+
+        notification = request.env['attendance.notification'].sudo().search([('id', '=', notification_id)], limit=1)
+
+        if not notification:
+            return {'error': 'Notification not found'}
+
+        # Atualizar o campo is_read
+        notification.sudo().write({'is_read': is_read})
+
+        return {
+            'success': True,
+            'message': 'Notification updated successfully',
+            'notification_id': notification_id,
+            'is_read': is_read
+        }
+

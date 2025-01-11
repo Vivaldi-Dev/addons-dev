@@ -42,7 +42,7 @@
 
                             <tr t-foreach="sorted(doc.aggregated_salary_rule_lines, key=lambda line: line.employee_id.name)"
                                 t-as="line" style="border: 1px solid #000;">
-                                <t t-if="line.irps_amout_positivo > 0">
+                                <t >
                                     <td style="border: 1px solid black; padding: 8px;">
                                         <t t-esc="line.code"/>
                                     </td>
@@ -56,7 +56,7 @@
                                         <t t-esc="line.numero_beneficiario"/>
                                     </td>
                                     <td style="border: 1px solid black; padding: 8px;">
-                                        <t t-esc="line.irps_amout_positivo"/>
+
                                     </td>
                                 </t>
                             </tr>

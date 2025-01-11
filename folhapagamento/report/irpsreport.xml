@@ -3,11 +3,11 @@
     <template id="folhapagamento_report_ins">
         <t t-call="web.basic_layout">
 
-
             <div style="font-family: Arial, sans-serif; margin: 0; padding: 0; width: 100%; max-width: 1200px; margin: 0 auto;">
                 <header style="text-align: center; margin-bottom: 20px;">
                     <div style="text-align: center; margin-bottom:5px; ">
-                        <img src="/folhapagamento/static/img/Emblem_of_Mozambique.svg.png" alt="Logotipo" style="max-height: 80px;"/>
+                        <img src="/folhapagamento/static/img/Emblem_of_Mozambique.svg.png" alt="Logotipo"
+                             style="max-height: 80px;"/>
                     </div>
                     <div>
                         <h1 style="margin: 0;">REPÚBLICA DE MOÇAMBIQUE</h1>
@@ -20,98 +20,75 @@
                     </div>
                 </header>
 
-                <section style="display: flex; justify-content: space-between; margin: 20px 0;">
-                    <div>
-                        <p style="margin: 5px 0; font-size: 12px;">Data de entrada na região:</p>
-                        <p style="margin: 5px 0; font-size: 12px;">Atividade:</p>
-                        <p style="margin: 5px 0; font-size: 12px;">Contribuinte N.º: 904519108</p>
-                    </div>
-                    <div>
-                        <p style="margin: 5px 0; font-size: 12px;">Nome:
-                            <span>Namula</span>
-                        </p>
-                        <p style="margin: 5px 0; font-size: 12px;">Morada: ____________________</p>
-                        <p style="margin: 5px 0; font-size: 12px;">Localidade: _________________</p>
-                        <p style="margin: 5px 0; font-size: 12px;">Caixa Postal: _______________</p>
-                        <p style="margin: 5px 0; font-size: 12px;">Telefone: __________________</p>
-                    </div>
-                </section>
 
                 <section style="margin: 20px 0;">
-                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; text-align: center;">
                         <thead>
                             <tr>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Número
+                                <th rowspan="2" style="border: 1px solid #000; padding: 5px; vertical-align: middle;">
+                                    Nº
                                 </th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Beneficiários<br/>(Nomes completos)
+                                <th rowspan="2" style="border: 1px solid #000; padding: 5px; vertical-align: middle;">
+                                    Números
                                 </th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Data de Nascimento<br/>(Dia/Mês/Ano)
+                                <th rowspan="2" style="border: 1px solid #000; padding: 5px; vertical-align: middle;">
+                                    Nomes completos
                                 </th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Dias Trabalhados
+                                <th colspan="2" style="border: 1px solid #000; padding: 5px;">Data de Nascimento (3)
                                 </th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Rem. Diversas<br/>(MT)
+                                <th colspan="2" style="border: 1px solid #000; padding: 5px;">Rem. Diversas</th>
+                                <th rowspan="2" style="border: 1px solid #000; padding: 5px; vertical-align: middle;">
+                                    Comissões
+                                    <br/>Bônus e Indem. (6)
                                 </th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Comissões<br/>(MT)
+                                <th rowspan="2" style="border: 1px solid #000; padding: 5px; vertical-align: middle;">
+                                    Subs. Férias,<br/>retribuição por<br/>substituição de gozo férias (7)
                                 </th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Subsídios
+                                <th rowspan="2" style="border: 1px solid #000; padding: 5px; vertical-align: middle;">
+                                    Grupo de Escala (8)
                                 </th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Grupo de Escala
+                                <th rowspan="2" style="border: 1px solid #000; padding: 5px; vertical-align: middle;">
+                                    Incapacidade Ac. de Trab.
+                                    <br/>Doença Prof. (9)
                                 </th>
-                                <th style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Observações
-                                </th>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 5px;">Dia/Mês/Ano</th>
+                                <th style="border: 1px solid #000; padding: 5px;">Dias (4)</th>
+                                <th style="border: 1px solid #000; padding: 5px;">Dias (4)</th>
+                                <th style="border: 1px solid #000; padding: 5px;">Importância (5)</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    1
-                                </td>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Adriano Bernardo
-                                </td>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    27/11/1987
-                                </td>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    28
-                                </td>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    1,199.65
-                                </td>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    5,350.00
-                                </td>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;">
-                                    Técnico
-                                </td>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;"></td>
-                                <td style="border: 1px solid black; padding: 8px; text-align: center; font-size: 12px;"></td>
+                                <td style="border: 1px solid #000; padding: 10px;">1</td>
+                                <td style="border: 1px solid #000; padding: 10px;">921238969</td>
+                                <td style="border: 1px solid #000; padding: 10px;">Adriano Bernardo</td>
+                                <td style="border: 1px solid #000; padding: 10px;">27/11/1987</td>
+                                <td style="border: 1px solid #000; padding: 10px;">28</td>
+                                <td style="border: 1px solid #000; padding: 10px;">11.959,60</td>
+                                <td style="border: 1px solid #000; padding: 10px;">5.360,00</td>
+                                <td style="border: 1px solid #000; padding: 10px;">Técnico</td>
+                                <td style="border: 1px solid #000; padding: 10px;">2</td>
+                                <td style="border: 1px solid #000; padding: 10px;">Demissão em 20/06/2021</td>
                             </tr>
-                            <!-- Adicione mais linhas conforme necessário -->
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 10px;">2</td>
+                                <td style="border: 1px solid #000; padding: 10px;">920505063</td>
+                                <td style="border: 1px solid #000; padding: 10px;">Daniel Victorino Victorino</td>
+                                <td style="border: 1px solid #000; padding: 10px;">02/03/1995</td>
+                                <td style="border: 1px solid #000; padding: 10px;">30</td>
+                                <td style="border: 1px solid #000; padding: 10px;">7.000,00</td>
+                                <td style="border: 1px solid #000; padding: 10px;">3.132,56</td>
+                                <td style="border: 1px solid #000; padding: 10px;">Team Leader</td>
+                                <td style="border: 1px solid #000; padding: 10px;">2</td>
+                                <td style="border: 1px solid #000; padding: 10px;">Foi despedido em 20/06/2021</td>
+                            </tr>
                         </tbody>
                     </table>
+
                 </section>
 
-                <footer style="display: flex; justify-content: space-between; margin: 20px 0;">
-                    <div style="width: 48%; font-size: 12px;">
-                        <p>CALCULO DAS CONTRIBUIÇÕES A DEPOSITAR</p>
-                        <p>Total das colunas 5/6/7: 4,112.92 MT</p>
-                        <p>Total a depositar: 4,112.92 MT</p>
-                    </div>
-                    <div style="width: 48%; font-size: 12px;">
-                        <p>Assinatura e carimbo:</p>
-                        <p>______________________</p>
-                    </div>
-                </footer>
 
                 <div style="font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; margin-top:100px; margin: 0;">
                     <div style="border: 1px solid black; width: 90%; max-width: 900px;">

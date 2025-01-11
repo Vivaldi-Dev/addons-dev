@@ -31,23 +31,21 @@ class ReportXls(models.AbstractModel):
             'Total Desc', 'A Receber'
         ]
 
-        # Escrever os cabeçalhos na primeira linha
+
         for col_num, header in enumerate(headers):
             worksheet.write(0, col_num, header, header_format)
 
-        # Ordenar a lista de 'partners' com base no nome do funcionário
         sorted_lines = []
 
         for folhapagamento in partners:
             for line in folhapagamento.aggregated_salary_rule_lines:
-                # Adiciona as linhas à lista 'sorted_lines', junto com o nome do funcionário
+
                 sorted_lines.append((line, line.employee_id.name or ''))
 
-        # Ordenar pelo nome do funcionário
-        sorted_lines.sort(
-            key=lambda x: x[1].lower())  # Ordena por nome em ordem alfabética (ignorando maiúsculas/minúsculas)
 
-        # Inicializar variáveis para acumular os totais
+        sorted_lines.sort(
+            key=lambda x: x[1].lower())
+
         total_venc_base = 0
         total_incentivo = 0
         total_he = 0
@@ -62,11 +60,11 @@ class ReportXls(models.AbstractModel):
         total_desc = 0
         total_a_receber = 0
 
-        # Preencher a planilha com as linhas ordenadas
+
         row = 1
         for line, employee_name in sorted_lines:
-            worksheet.write(row, 0, row, cell_format)  # Número
-            worksheet.write(row, 1, employee_name, cell_format)  # Nome do Funcionário
+            worksheet.write(row, 0, row, cell_format)
+            worksheet.write(row, 1, employee_name, cell_format)
             worksheet.write(row, 2, line.job_position or '', cell_format)
             worksheet.write(row, 3, line.basic_amount, cell_format)
             worksheet.write(row, 4, line.inc_amount, cell_format)
@@ -117,3 +115,5 @@ class ReportXls(models.AbstractModel):
 
         # Ajustar o tamanho das colunas
         worksheet.set_column(0, len(headers) - 1, 15)
+
+

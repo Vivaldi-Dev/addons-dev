@@ -27,8 +27,7 @@
                     </group>
 
                     <searchpanel>
-                        <field name="company_id"  icon="fa-building"
-                               enable_counters="1"/>
+
                         <field name="department_id" icon="fa-users" enable_counters="1"/>
                     </searchpanel>
 

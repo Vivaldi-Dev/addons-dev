@@ -23,6 +23,7 @@
                     <group>
                         <field name="name"/>
                         <field name="month"/>
+                        <field name="year"/>
                         <field name="company_id"/>
                     </group>
 

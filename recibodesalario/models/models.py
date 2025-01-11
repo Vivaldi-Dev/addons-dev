@@ -18,6 +18,7 @@ class Recibo(models.Model):
     _description = 'Folha de Pagamento'
 
     descricao = fields.Char(string='Descrição')
+
     mes = fields.Selection(
         [('01', 'Janeiro'), ('02', 'Fevereiro'), ('03', 'Março'), ('04', 'Abril'), ('05', 'Maio'),
          ('06', 'Junho'), ('07', 'Julho'), ('08', 'Agosto'), ('09', 'Setembro'), ('10', 'Outubro'),
@@ -32,6 +33,14 @@ class Recibo(models.Model):
         inverse_name='folha_id',
         string='Folhas de Pagamento',
         store=True
+    )
+
+    year = fields.Selection(
+        [(str(year), str(year)) for year in range(2015, datetime.now().year + 2)],
+
+        string='Ano',
+        default=str(datetime.now().year),
+        help='Ano relacionado ao pagamento'
     )
 
     detalhes_regras_salariais_ids = fields.One2many(
@@ -68,6 +77,7 @@ class Recibo(models.Model):
         default=lambda self: self.env['res.company']._company_default_get()
     )
 
+    departamento_id = fields.Many2one('hr.department', string='Departamento de RH')
     employee_id = fields.Many2one('hr.employee', string='Employee', )
 
     def acao_visualizar_relatorio(self):
@@ -96,19 +106,29 @@ class Recibo(models.Model):
         print(f"Empresa ativa no search: {empresa_id}, Filtros aplicados: {args}")
         return super(Recibo, self).search(args, offset=offset, limit=limit, order=order, count=count)
 
-    @api.onchange('mes')
-    def _onchange_mes(self):
-        if self.mes:
-            ano = datetime.now().year
-            data_inicio = datetime.strptime(f'{ano}-{self.mes}-01', '%Y-%m-%d').date()
-            data_fim = (data_inicio.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+    @api.onchange('mes', 'departamento_id', 'year')
+    def _onchange_month_or_departamento(self):
+        if self.mes and self.year:
 
-            folhas = self.env['hr.payslip'].search([
-                ('date_from', '>=', data_inicio),
-                ('date_to', '<=', data_fim),
-            ])
+            year = int(self.year)
+            date_from = datetime.strptime(f'{year}-{self.mes}-01', '%Y-%m-%d').date()
+            date_to = (date_from.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
 
-            self.folhas_payslip_ids = [(6, 0, folhas.ids)]
+            domain = [
+                ('date_from', '>=', date_from),
+                ('date_to', '<=', date_to),
+            ]
+
+            if self.departamento_id:
+                domain.append(('employee_id.department_id', '=', self.departamento_id.id))
+
+
+            payslips = self.env['hr.payslip'].search(domain)
+            print(f"Payslips encontrados: {payslips.ids}")
+
+            self.folhas_payslip_ids = [(6, 0, payslips.ids)]
+        else:
+            self.folhas_payslip_ids = False
 
     @api.depends('folhas_payslip_ids')
     def _compute_detalhes_regras_salariais_ids(self):
@@ -129,7 +149,7 @@ class Recibo(models.Model):
                 continue
 
             chave = (linha.employee_id.id, linha.contract_id.id, linha.employee_id.barcode, linha.employee_id.x_nuit,
-                     linha.employee_id.x_inss)
+                     linha.employee_id.x_inss, )
             grupo = agrupado_por_contrato[chave]
 
             grupo['employee_id'] = linha.employee_id.id
@@ -164,6 +184,16 @@ class Recibo(models.Model):
         for chave, valores in agrupado_por_contrato.items():
             total_remuneracoes, total_descontos = self._calcular_totais(valores['codes'])
 
+            employee = self.env['hr.employee'].browse(valores['employee_id'])
+
+            bank_account_number = False
+            bank_name = False
+            if employee.address_home_id.bank_ids:
+
+                bank_account_number = employee.address_home_id.bank_ids[0].acc_number
+                bank_name = employee.address_home_id.bank_ids[0].bank_id.name
+
+
             data = {
                 'folha_id': registro.id,
                 'employee_id': valores['employee_id'],
@@ -187,9 +217,12 @@ class Recibo(models.Model):
                 'numero_contribuinte': valores['x_nuit'],
                 'numero_beneficiario': valores['x_inss'],
                 'totalderemuneracoes': total_remuneracoes,
-                'totaldedescontos': total_descontos
+                'totaldedescontos': total_descontos,
+                'bank_account_number': bank_account_number,
+                'bank_name': bank_name,
             }
 
+            # Verificar se já existe uma linha agregada com os mesmos parâmetros
             linha_existente = AggregatedLine.search([
                 ('folha_id', '=', registro.id),
                 ('employee_id', '=', valores['employee_id']),
@@ -197,11 +230,10 @@ class Recibo(models.Model):
             ], limit=1)
 
             if linha_existente:
-                linha_existente.write(data)
+                linha_existente.write(data)  # Atualiza a linha existente
                 linhas_agregadas.append(linha_existente.id)
             else:
-
-                nova_linha = AggregatedLine.create(data)
+                nova_linha = AggregatedLine.create(data)  # Cria nova linha
                 linhas_agregadas.append(nova_linha.id)
 
         return linhas_agregadas
@@ -210,7 +242,7 @@ class Recibo(models.Model):
     def _compute_linhas_agregadas(self):
         AggregatedLine = self.env['folhapagamento.individual.report']
         for registro in self:
-            # Filtrar e agrupar linhas
+
             agrupado_por_contrato = self._filtrar_e_agrupar_linhas(
                 departamento_id=None,
                 employee_id=registro.employee_id.id
@@ -256,24 +288,12 @@ class AggregatedLine(models.Model):
     numero_contribuinte = fields.Char(string='Nº de Contribuinte')
     numero_beneficiario = fields.Char(string='Nº de Beneficiário')
 
+    bank_account_number = fields.Char(string='Número da Conta Bancária')
+    bank_name = fields.Char(string='Nome do Banco')
+
     def action_example_method(self):
         return {
             'type': 'ir.actions.client',
             'tag': 'folhareport',
         }
 
-    @api.model
-    def generate_individual_report(self):
-        report_name = 'recibodesalario.recibo_report_individual_template'
-
-        report = self.env.ref(report_name)
-        pdf_content, _ = report.render_qweb_pdf([self.id])
-
-        pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
-
-        return {
-            'type': 'ir.actions.act_url',
-            'url': 'data:application/pdf;base64,' + pdf_base64,
-            'target': 'new',
-            'name': 'Relatório Individual',
-        }
