@@ -7,6 +7,12 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 
 
+class HrPayslipWorkedDays(models.Model):
+    _inherit = 'hr.payslip.worked_days'
+
+    folha_id = fields.Many2one('recibo.recibo', string='Folha de Pagamento')
+
+
 class HrPayslip(models.Model):
     _inherit = 'hr.payslip'
 
@@ -58,6 +64,11 @@ class Recibo(models.Model):
         order='employee_id asc',
     )
 
+    Payslip_Worked = fields.One2many(
+        comodel_name='hr.payslip.worked_days',
+        inverse_name='folha_id',  # Define o campo Many2one como referência
+        string='Payslip Worked Hours'
+    )
     estado = fields.Selection(
         [('submitted', 'Submetido'),
          ('approved', 'Aprovado'),
@@ -95,8 +106,6 @@ class Recibo(models.Model):
             },
         }
 
-
-
     @api.model
     def search(self, args, offset=0, limit=None, order=None, count=False):
         empresa_id = self.env.company.id
@@ -121,7 +130,6 @@ class Recibo(models.Model):
 
             if self.departamento_id:
                 domain.append(('employee_id.department_id', '=', self.departamento_id.id))
-
 
             payslips = self.env['hr.payslip'].search(domain)
             print(f"Payslips encontrados: {payslips.ids}")
@@ -149,7 +157,7 @@ class Recibo(models.Model):
                 continue
 
             chave = (linha.employee_id.id, linha.contract_id.id, linha.employee_id.barcode, linha.employee_id.x_nuit,
-                     linha.employee_id.x_inss, )
+                     linha.employee_id.x_inss,)
             grupo = agrupado_por_contrato[chave]
 
             grupo['employee_id'] = linha.employee_id.id
@@ -186,13 +194,32 @@ class Recibo(models.Model):
 
             employee = self.env['hr.employee'].browse(valores['employee_id'])
 
+            date_from = datetime.strptime(f"{registro.year}-{registro.mes}-01", '%Y-%m-%d').date()
+            date_to = (date_from.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+
+            payslip_worked_days = self.env['hr.payslip.worked_days'].search([
+                ('payslip_id.employee_id', '=', valores['employee_id']),
+                ('payslip_id.date_from', '>=', date_from),
+                ('payslip_id.date_to', '<=', date_to)
+            ])
+            total_worked_days = sum(payslip_worked_days.mapped('number_of_days'))
+
+            leaves = self.env['hr.leave'].sudo().search([
+                ('employee_id', '=', valores['employee_id']),
+                ('date_from', '>=', date_from),
+                ('date_to', '<=', date_to),
+                ('state', 'in', ['confirm', 'refuse'])
+            ])
+
+            total_leaves = sum((leave.date_to - leave.date_from).days + 1 for leave in leaves)
+            unique_codes = set(leave.holiday_status_id.code for leave in leaves if leave.holiday_status_id.code)
+            code_absent = ', '.join(unique_codes)
+
             bank_account_number = False
             bank_name = False
             if employee.address_home_id.bank_ids:
-
                 bank_account_number = employee.address_home_id.bank_ids[0].acc_number
                 bank_name = employee.address_home_id.bank_ids[0].bank_id.name
-
 
             data = {
                 'folha_id': registro.id,
@@ -220,9 +247,11 @@ class Recibo(models.Model):
                 'totaldedescontos': total_descontos,
                 'bank_account_number': bank_account_number,
                 'bank_name': bank_name,
+                'worked_days': total_worked_days,
+                'total_leaves': total_leaves,
+                'code_absent': code_absent,
             }
 
-            # Verificar se já existe uma linha agregada com os mesmos parâmetros
             linha_existente = AggregatedLine.search([
                 ('folha_id', '=', registro.id),
                 ('employee_id', '=', valores['employee_id']),
@@ -230,10 +259,10 @@ class Recibo(models.Model):
             ], limit=1)
 
             if linha_existente:
-                linha_existente.write(data)  # Atualiza a linha existente
+                linha_existente.write(data)
                 linhas_agregadas.append(linha_existente.id)
             else:
-                nova_linha = AggregatedLine.create(data)  # Cria nova linha
+                nova_linha = AggregatedLine.create(data)
                 linhas_agregadas.append(nova_linha.id)
 
         return linhas_agregadas
@@ -242,7 +271,6 @@ class Recibo(models.Model):
     def _compute_linhas_agregadas(self):
         AggregatedLine = self.env['folhapagamento.individual.report']
         for registro in self:
-
             agrupado_por_contrato = self._filtrar_e_agrupar_linhas(
                 departamento_id=None,
                 employee_id=registro.employee_id.id
@@ -291,9 +319,13 @@ class AggregatedLine(models.Model):
     bank_account_number = fields.Char(string='Número da Conta Bancária')
     bank_name = fields.Char(string='Nome do Banco')
 
+    code_absent = fields.Char(string="Codigo da falta")
+
+    worked_days = fields.Float(string='Dias Trabalhados')
+    total_leaves = fields.Float(string='Total de Faltas')
+
     def action_example_method(self):
         return {
             'type': 'ir.actions.client',
             'tag': 'folhareport',
         }
-

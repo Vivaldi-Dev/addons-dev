@@ -121,9 +121,11 @@ class HrPayslip(models.Model):
 
     def _look_for_fouls(self, date_from, date_to):
         """Busca as faltas dos funcionários no intervalo de datas fornecido."""
+
         busca = self.env['hr.leave'].sudo().search([
             ('date_from', '>=', date_from),
             ('date_to', '<=', date_to),
+            ('state', 'in', ['confirm', 'refuse']),
         ])
 
         dados = []
@@ -310,16 +312,19 @@ class PayrollAbsent(models.Model):
         now = datetime.now()
         current_hour = now.hour
         current_minute = now.minute
-        current_weekday = now.weekday()  # 0=Segunda, 6=Domingo
+        current_weekday = now.weekday()
 
-        # Verificar se é domingo (weekday == 6)
         if current_weekday == 6:
             print(f"[INFO] O método 'ausentes' não foi acionado porque é domingo. Hora atual: {now}.")
-            return  # Não faz nada aos domingos
+            return
 
-        # Verificar se é meia-noite
-        if current_hour == 00 and current_minute == 00:
+        if current_hour == 0 and current_minute == 0:
             # print(f"[INFO] O método 'ausentes' foi acionado em {now}. Verificando ausências...")
+
+            holiday_status = self.env['hr.leave.type'].sudo().search([('name', '=', 'Falta')], limit=1)
+            if not holiday_status:
+                print("[ERROR] Não foi encontrado um status de férias com o nome 'Falta'.")
+                return
 
             employees = self.env['hr.employee'].sudo().search([('id', '=', '20')])
             for employee in employees:
@@ -329,10 +334,9 @@ class PayrollAbsent(models.Model):
                 ], limit=1)
 
                 if not attendance:
-                    # print(f"[INFO] Funcionário {employee.name} ausente (sem check-in). Criando registro de ausência...")
 
                     self.env['hr.leave'].sudo().create({
-                        'holiday_status_id': 7,
+                        'holiday_status_id': holiday_status.id,
                         'employee_id': employee.id,
                         'date_from': now,
                         'date_to': now,
@@ -341,9 +345,8 @@ class PayrollAbsent(models.Model):
                         'number_of_days': 1.0,
                         'duration_display': 1.0,
                     })
-
-                    # print(f"[INFO] Ausência registrada para o funcionário {employee.name}.")
                 else:
                     print(f"[INFO] Funcionário {employee.name} presente (check-in encontrado).")
         else:
             print(f"[INFO] O método 'ausentes' não foi acionado {current_hour} e {current_minute}. Hora atual: {now}.")
+

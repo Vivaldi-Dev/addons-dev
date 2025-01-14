@@ -217,36 +217,27 @@ class CheckIn(http.Controller):
 
     @http.route('/api/monitoring/percentages', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def percentages(self, **kw):
-        return self.calculate_percentage(time_frame="day")
-
-    @http.route('/api/monitoring/percentages_weekly', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
-    def percentages_weekly(self, **kw):
-        return self.calculate_percentage(time_frame="week")
-
-    @http.route('/api/monitoring/percentages_monthly', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
-    def percentages_monthly(self, **kw):
-        return self.calculate_percentage(time_frame="month")
-
-    def calculate_percentage(self, time_frame="day"):
         try:
-            today = datetime.today().date()
+            data = request.jsonrequest
+            date_from = data.get('date_from')
+            date_to = data.get('date_to')
+            company_id = data.get('company_id')
 
-            if time_frame == "day":
-                start_date = today
-                end_date = today
-            elif time_frame == "week":
-                start_date = today - timedelta(days=today.weekday())
-                end_date = start_date + timedelta(days=6)
-            elif time_frame == "month":
-                start_date = today.replace(day=1)
-                end_date = (start_date.replace(month=start_date.month % 12 + 1, day=1) - timedelta(days=1))
+            if not date_from or not date_to or not company_id:
+                return {'error': "'date_from', 'date_to' e 'company_id' são obrigatórios"}
 
-            employees = request.env['hr.employee'].sudo().search([])
+            try:
+                start_date = datetime.strptime(date_from, "%Y-%m-%d").date()
+                end_date = datetime.strptime(date_to, "%Y-%m-%d").date()
+            except ValueError:
+                return {'error': "Formato de data inválido. Use 'YYYY-MM-DD'"}
+
+            employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
 
             total_employees = len(employees)
             if total_employees == 0:
                 return http.Response(
-                    json.dumps({'error': 'No employees found'}),
+                    json.dumps({'error': 'Nenhum funcionário encontrado para a companhia fornecida'}),
                     content_type='application/json',
                     status=400
                 )
@@ -270,7 +261,9 @@ class CheckIn(http.Controller):
             percentage_ausentes = round((ausentes / total_employees) * 100) if total_employees > 0 else 0
 
             response_data = {
-                'time_frame': time_frame,
+                'date_from': date_from,
+                'date_to': date_to,
+                'company_id': company_id,
                 'total_employees': total_employees,
                 'presentes': presentes,
                 'ausentes': ausentes,
@@ -281,12 +274,7 @@ class CheckIn(http.Controller):
             return response_data
 
         except Exception as e:
-
-            return http.Response(
-                json.dumps({'error': str(e)}),
-                content_type='application/json',
-                status=500
-            )
+            return {'error': str(e)}
 
     @http.route('/monitoring/overview', auth='none', cors='*', csrf=False)
     def overview(self, **kw):
@@ -855,10 +843,9 @@ class CheckIn(http.Controller):
                 ('check_in', '<', datetime(next_month_year, next_month, 1))
             ])
 
-            # Formatar datas para o formato 'YYYY-MM-DD'
             attendance_info = [{
-                'check_in': record.check_in.strftime('%Y-%m-%d') if record.check_in else None,
-                'check_out': record.check_out.strftime('%Y-%m-%d') if record.check_out else None
+                'check_in': record.check_in.strftime('%Y-%m-%d %H:%M:%S') if record.check_in else None,
+                'check_out': record.check_out.strftime('%Y-%m-%d %H:%M:%S') if record.check_out else None
             } for record in attendance_records]
 
             employee_info = {
@@ -1123,7 +1110,6 @@ class CheckIn(http.Controller):
         if not notification:
             return {'error': 'Notification not found'}
 
-        # Atualizar o campo is_read
         notification.sudo().write({'is_read': is_read})
 
         return {
@@ -1133,3 +1119,25 @@ class CheckIn(http.Controller):
             'is_read': is_read
         }
 
+    @http.route('/hr_leaves/', auth='none', cors='*', csrf=False, methods=['GET'])
+    def hr_leaves(self, **kw):
+
+        records = request.env['hr.leave'].sudo().search([('state', 'in', ['confirm', 'refuse'])])
+
+        info_records = []
+
+        for record in records:
+            info_records.append({
+                'id': record.id,
+                'name': record.employee_id.name,
+                'holiday_status_id':{
+                    'id': record.holiday_status_id.id,
+                    'code':record.holiday_status_id.code,
+                }
+            })
+
+        return werkzeug.wrappers.Response(
+            json.dumps(info_records),
+            content_type='application/json',
+            status=200
+        )

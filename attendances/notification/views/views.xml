@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <data>
+
+        <record id="view_notication_search" model="ir.ui.view">
+            <field name="name">notification.search</field>
+            <field name="model">attendance.notification</field>
+            <field name="arch" type="xml">
+                <search string="Notifications">
+                    <field name="employee_id"/>
+                    <field name="notification_type"/>
+                    <field name="is_read"/>
+                    <separator/>
+                    <filter name="filter_late" string="Late Notifications"
+                            domain="[('notification_type', '=', 'late')]"/>
+                    <filter name="filter_absence" string="Absence Notifications"
+                            domain="[('notification_type', '=', 'absence')]"/>
+                    <filter name="filter_early_leave" string="Early Leave Notifications"
+                            domain="[('notification_type', '=', 'early_leave')]"/>
+                    <filter name="filter_attendance_ok" string="Attendance OK Notifications"
+                            domain="[('notification_type', '=', 'attendance_ok')]"/>
+                    <filter name="filter_unread" string="Unread Notifications" domain="[('is_read', '=', False)]"/>
+                    <separator/>
+                    <group expand="1">
+                        <filter name="filter_by_employee" string="By Employee" context="{'group_by':'employee_id'}"/>
+                    </group>
+
+<!--                    <searchpanel>-->
+
+<!--                        <field name="department_id" icon="fa-users" enable_counters="1"/>-->
+<!--                    </searchpanel>-->
+
+                </search>
+            </field>
+        </record>
+
+        <record id="view_attendance_notification_form" model="ir.ui.view">
+            <field name="name">attendance.notification.form</field>
+            <field name="model">attendance.notification</field>
+            <field name="arch" type="xml">
+                <form string="Attendance Notification">
+                    <sheet>
+                        <group>
+                            <field name="title"/>
+                            <field name="message"/>
+                            <field name="notification_type"/>
+                            <field name="employee_id"/>
+                            <field name="event_date"/>
+                            <field name="check_in"/>
+                            <field name="check_out"/>
+                            <field name="created_at"/>
+                            <field name="is_read"/>
+                            <field name="department_id"/>
+                            <field name="company_id"/>
+                        </group>
+                    </sheet>
+                    <footer>
+                        <button name="mark_as_read" string="Mark as Read" type="object" class="btn-primary"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_attendance_notification_tree" model="ir.ui.view">
+            <field name="name">attendance.notification.tree</field>
+            <field name="model">attendance.notification</field>
+            <field name="arch" type="xml">
+                <tree string="Attendance Notifications">
+                    <field name="employee_id"/>
+                    <field name="check_in"/>
+                    <field name="check_out"/>
+                    <field name="is_read"/>
+                    <button name="mark_as_read" string="Mark as Read" type="object" class="btn-primary"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="action_attendance_notification" model="ir.actions.act_window">
+            <field name="name">Attendance Notifications</field>
+            <field name="res_model">attendance.notification</field>
+            <field name="search_view_id" ref="view_notication_search"/>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    no notifications yet
+                </p>
+            </field>
+        </record>
+
+
+        <menuitem name="Absent employee" id="absent_menu"
+                  web_icon="notification,static/description/icon.png"
+                  action="action_attendance_notification" sequence="80"/>
+    </data>
+
+
+</odoo>
