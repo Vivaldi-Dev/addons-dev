@@ -67,6 +67,44 @@ class CheckIn(http.Controller):
     @token_required
     @http.route('/api/monitoring/presents', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def presentes(self, **kw):
+        """
+        Handles the processing and querying of employee attendance information within a given company and date range.
+
+        Provides API functionality to retrieve attendance records for employees of a specific company based on the provided
+        `company_id`. If the date range `start_date` and/or `end_date` is not specified, defaults to include all attendance
+        records for the current day. Validates the input and computes the total number of employees and those present, returning
+        detailed attendance records in JSON format.
+
+        @param self: Instance of the class.
+        @param kw: Dictionary containing the request parameters passed in the POST request.
+
+        @parameters:
+            company_id: str
+                A required parameter representing the ID of the company whose employee attendance needs to be queried.
+                Must be included in the request data.
+            start_date: Optional[str]
+                The start of the date range to filter employee attendance.
+                If provided, it must be in the format "YYYY-MM-DD".
+                Defaults to the start of the current day if not specified.
+            end_date: Optional[str]
+                The end of the date range to filter employee attendance.
+                If provided, it must be in the format "YYYY-MM-DD".
+                Defaults to the end of the current day if not specified.
+
+        @raises:
+            KeyError:
+                Raised if `company_id` is missing from the request data.
+            ValueError:
+                Raised if `start_date` or `end_date` cannot be parsed in the expected date format.
+            Exception:
+                Catch-all for any unexpected errors encountered during processing.
+
+        @returns:
+            dict
+                JSON response detailing attendance information.
+                Includes the total number of employees, total presentes (those marked as present within the date range),
+                and a list of detailed attendance records. An error message is returned if processing fails.
+        """
         try:
             data = request.jsonrequest
             print(data)
@@ -107,7 +145,6 @@ class CheckIn(http.Controller):
             if start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            # Filtra todos os funcionários da empresa
             employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
             total_employees = len(employees)
 
@@ -115,14 +152,14 @@ class CheckIn(http.Controller):
             presentes = 0
 
             for employee in employees:
-                # Verifica se há registro de presença para o funcionário no período especificado
-                attendance = request.env['hr.attendance'].sudo().search([
+
+                attendances = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', start_date),
                     ('check_in', '<=', end_date)
-                ], limit=1)
+                ], order='check_in desc')
 
-                if attendance:
+                for attendance in attendances:
                     check_in = attendance.check_in.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_in else None
                     check_out = attendance.check_out.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_out else None
                     records.append({
@@ -134,6 +171,8 @@ class CheckIn(http.Controller):
                         'status': 'presente'
                     })
                     presentes += 1
+
+            records = sorted(records, key=lambda x: x['check_in'], reverse=True)
 
             return {
                 'total_employees': total_employees,
@@ -147,6 +186,37 @@ class CheckIn(http.Controller):
     @token_required
     @http.route('/api/monitoring/ausentes', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def ausentes(self, **kw):
+        """
+        Processes and retrieves information about absent employees within a given company, based on attendance records and optional date filters.
+
+        Parameters:
+            **kw: dict
+                Additional keyword arguments from the HTTP request, which are expected to include the following:
+                  - company_id (int): Mandatory. The identifier of the company to filter employees.
+                  - start_date (str, optional): Start date for filtering attendance records in the format 'YYYY-MM-DD'.
+                  - end_date (str, optional): End date for filtering attendance records in the format 'YYYY-MM-DD'.
+
+        Returns:
+            dict: A dictionary containing a summary of absent employees, which includes:
+                  - total_employees (int): Total number of employees within the specified company.
+                  - total_ausentes (int): Number of employees marked as absent based on attendance data.
+                  - records (list): A list of dictionaries, each representing an absent employee, with the following details:
+                     - id (int): Employee ID.
+                     - name (str): Employee's name.
+                     - job_position (str): Job title of the employee.
+                     - check_in (None): No check-in record since it denotes absence.
+                     - check_out (None): No check-out record since it denotes absence.
+                     - status (str): Set to 'ausente'.
+
+        Raises:
+            KeyError: If the mandatory 'company_id' field is missing in the JSON request body.
+            ValueError: If 'start_date' or 'end_date' is not in the expected 'YYYY-MM-DD' format.
+
+        Notes:
+            The function validates the presence and format of the `company_id`, `start_date`, and `end_date` fields in the
+            incoming request. If both `start_date` and `end_date` are provided, their chronological order is also validated.
+            Employees with no attendance records during the specified period are considered absent.
+        """
         try:
             data = request.jsonrequest
             print(data)
@@ -180,22 +250,22 @@ class CheckIn(http.Controller):
             if start_date and end_date and start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            # Busca todos os funcionários da empresa
             employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
-            total_employees = len(employees)  # Total de funcionários
+            total_employees = len(employees)
 
             records = []
             ausentes = 0
 
             for employee in employees:
-                # Verifica se o funcionário tem presença no período especificado
-                attendance = request.env['hr.attendance'].sudo().search([
+
+                attendances = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', start_date) if start_date else (),
                     ('check_in', '<', end_date) if end_date else ()
-                ], limit=1)
+                ])
 
-                if not attendance:
+
+                if not attendances:
                     records.append({
                         'id': employee.id,
                         'name': employee.name,
@@ -1119,25 +1189,6 @@ class CheckIn(http.Controller):
             'is_read': is_read
         }
 
-    @http.route('/hr_leaves/', auth='none', cors='*', csrf=False, methods=['GET'])
-    def hr_leaves(self, **kw):
 
-        records = request.env['hr.leave'].sudo().search([('state', 'in', ['confirm', 'refuse'])])
 
-        info_records = []
 
-        for record in records:
-            info_records.append({
-                'id': record.id,
-                'name': record.employee_id.name,
-                'holiday_status_id':{
-                    'id': record.holiday_status_id.id,
-                    'code':record.holiday_status_id.code,
-                }
-            })
-
-        return werkzeug.wrappers.Response(
-            json.dumps(info_records),
-            content_type='application/json',
-            status=200
-        )

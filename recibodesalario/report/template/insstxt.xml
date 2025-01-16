@@ -4,12 +4,9 @@
 
     <template id="recibo_report_INSS" name="Relatório INSS txt">
         <t t-foreach="docs" t-as="doc">
-            <t t-foreach="doc.linhas_agregadas" t-as="linha">
 
-                <t t-esc="linha.numero_beneficiario"/>;
-                <t t-esc="linha.basic_amount"/>;
-                <t t-esc="linha.inc_amount"/>;
-                ;; <!-- Campo vazio -->
+            <t t-foreach="doc.linhas_agregadas" t-as="linha">
+                <t t-esc="'%s;%s;%s;;' % (linha.numero_beneficiario or '', (linha.worked_days - linha.total_leaves ) or '', linha.code_absent or '')"/>
             </t>
         </t>
     </template>

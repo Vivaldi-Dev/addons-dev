@@ -157,11 +157,12 @@ class Recibo(models.Model):
                 continue
 
             chave = (linha.employee_id.id, linha.contract_id.id, linha.employee_id.barcode, linha.employee_id.x_nuit,
-                     linha.employee_id.x_inss,)
+                     linha.employee_id.x_inss,linha.employee_id.birthday)
             grupo = agrupado_por_contrato[chave]
 
             grupo['employee_id'] = linha.employee_id.id
             grupo['x_nuit'] = linha.employee_id.x_nuit
+            grupo['birthday'] = linha.employee_id.birthday
             grupo['x_inss'] = linha.employee_id.x_inss
             grupo['contract_id'] = linha.contract_id.id
             grupo['job_position'] = linha.employee_id.job_id.name
@@ -241,6 +242,7 @@ class Recibo(models.Model):
                 'outrosdescontos': valores['codes'].get('DD', 0.0),
                 'total_amount': valores['total'],
                 'code': valores['barcode'],
+                'birthday': valores['birthday'],
                 'numero_contribuinte': valores['x_nuit'],
                 'numero_beneficiario': valores['x_inss'],
                 'totalderemuneracoes': total_remuneracoes,
@@ -323,6 +325,8 @@ class AggregatedLine(models.Model):
 
     worked_days = fields.Float(string='Dias Trabalhados')
     total_leaves = fields.Float(string='Total de Faltas')
+
+    birthday = fields.Date(string="Data de Aniversário",)
 
     def action_example_method(self):
         return {

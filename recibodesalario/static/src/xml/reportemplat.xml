@@ -1,0 +1,129 @@
+<template xml:space="preserve">
+    <t t-name="folhareport">
+        <div class="container-fluid mb-5 mt-5">
+
+            <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet"/>
+            <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+            <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+            <style>
+                .table>:not(caption)>*>* {
+                    padding: 0.5rem 0.5rem !important;
+                }
+
+                .table-striped tbody tr:nth-of-type(odd) {
+                background-color: rgba(0, 0, 0, .0) !important;
+                }
+
+                .fontsize{
+                font-size: 15px;
+                font-weight: 700;
+                }
+
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                }
+
+                td {
+                    border: 1px solid #000;
+                    text-align: right;
+                }
+
+                .labelposition{
+                    display: flex;
+                    align-items: self-end;
+                    justify-content: center;
+                }
+            </style>
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="panel panel-default invoice" id="invoice">
+                        <div class="panel-body">
+                            <div class="row mx-5">
+
+                                <div class="col-sm-5 top-left border border-dark py-2">
+                                    <p class="mb-0 fontsize">Av. Base N`Tchinga nº 319</p>
+                                    <p class="fontsize">Bairro da Coop, Maputo – Mozambique</p>
+                                </div>
+
+                                <div class="col-sm-3 top-left border border-dark border-4 py-2">
+                                    <p class="mb-0 fw-bolder fontsize" id="company_name">Empresa:</p>
+                                    <p class="mb-0 fontsize" id="departament">Departamento:</p>
+                                </div>
+
+                                <div class="col-sm-4 top-right text-right border border-dark py-2">
+                                    <h3 class="marginright fontsize">Folha de Salário</h3>
+                                    <span id="mes" class="marginright fs-3 fontsize"></span>
+                                </div>
+                            </div>
+
+                            <div class="table-row mt-3 mx-5">
+                                <table class="table table-striped p-2">
+                                    <thead class="thead-custom">
+                                        <tr>
+                                            <th class="text-center" style="width: 5%;">#</th>
+                                            <th>Nome do Funcionário</th>
+                                            <th class="text-center">Função</th>
+                                            <th class="text-center" style=" ">Venc Base</th>
+                                            <th class="text-center">Incentivo</th>
+                                            <th class="text-center">Horas Extras</th>
+                                            <th class="text-center">Total Rem</th>
+                                            <th class="text-center">INSS</th>
+                                            <th class="text-center">IRPS</th>
+                                            <th class="text-center">Desc. Atrasos</th>
+                                            <th class="text-center">Diversos</th>
+                                            <th class="text-center">Total Faltas (Dias)</th>
+                                            <th class="text-center">Empréstimos</th>
+                                            <th class="text-center">Fundo Fúnebre</th>
+                                            <th class="text-center">Total Desc</th>
+                                            <th class="text-center">A Receber</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="salary-data-body">
+                                    </tbody>
+                                </table>
+
+                                <div class="row mt-5">
+
+                                    <div class="col-6">
+                                       <label
+                                               class="border-bottom border-dark w-100 py-2 text-center fontsize">
+                                       </label>
+
+                                        <label class="labelposition">(Aprovado por)</label>
+                                    </div>
+
+                                    <div class="col-6">
+                                         <label
+                                                 class="border-bottom border-dark w-100 py-2 text-center fontsize">
+                                       </label>
+                                        <label class="labelposition">(O Dep. Rec. Humanos)</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mx-4 mt-3">
+                            <div class="col-6 margintop">
+                                <a href="#" class="btn btn-info me-1 btn-download">
+                                    <i class="fa fa-download"></i>
+                                    Baixar
+                                </a>
+
+                                <a href="#" class="btn btn-warning me-1 btn-download-excel">
+                                    <i class="fa fa-file-excel-o"></i>
+                                    Baixar Excel
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</template>

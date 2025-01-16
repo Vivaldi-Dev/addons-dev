@@ -28,6 +28,7 @@
         'report/report.xml',
         'report/template/recibo.xml',
         'report/template/insstxt.xml',
+        'report/template/inssreport.xml',
         'report/template/irps.xml',
     ],
     # only loaded in demonstration mode

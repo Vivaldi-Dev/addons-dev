@@ -15,7 +15,7 @@
                         </group>
 
                         <group>
-                           <field name="empresa_id"/>
+                            <field name="empresa_id"/>
                             <field name="employee_id"/>
                             <field name="departamento_id"/>
 
@@ -41,15 +41,16 @@
                                     <field name="code"/>
                                     <field name="employee_id" order="employee_id.name asc"/>
                                     <field name="job_position"/>
-                                     <field name="bank_name"/>
+                                    <field name="birthday"/>
+                                    <field name="bank_name"/>
                                     <field name="bank_account_number"/>
                                     <field name="basic_amount" string="BASIC"/>
                                     <field name="gross_amount" string="GROSS"/>
                                     <field name="inss_amount" string="INSS"/>
                                     <field name="irps_amout" string="IRPS"/>
-                                    <field name="worked_days" />
-                                    <field name="total_leaves" />
-                                    <field name="code_absent" />
+                                    <field name="worked_days"/>
+                                    <field name="total_leaves"/>
+                                    <field name="code_absent"/>
                                     <field name="net_amount" string="NET"/>
                                 </tree>
                             </field>
@@ -87,7 +88,7 @@
               action="action_recibo" sequence="50"/>
 
     <menuitem name="Recibo Salarial" id="recibo_salarial"
-          parent="folhapagamento.company_menu" action="action_recibo" sequence="0"/>
+              parent="folhapagamento.company_menu" action="action_recibo" sequence="0"/>
 
     <menuitem id="menu_payroll"
               name="Relatorios"

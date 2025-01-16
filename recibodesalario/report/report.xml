@@ -35,11 +35,21 @@
 
     <report
             id="recibo_report_inss"
-            string="INSS txt"
+            string="INSS TXT"
             model="recibo.recibo"
             report_type="qweb-text"
             name="recibodesalario.recibo_report_INSS"
             file="recibodesalario.recibo_report_INSS"
+            print_report_name="'Mapa de INSS - %s' % (object.descricao or 'Mapa de INSS')"
+    />
+
+    <report
+            id="recibo_template_inss"
+            string="INSS"
+            model="recibo.recibo"
+            report_type="qweb-pdf"
+            name="recibodesalario.recibo_report_ins"
+            file="recibodesalario.recibo_report_ins"
             print_report_name="'Mapa de INSS - %s' % (object.descricao or 'Mapa de INSS')"
     />
 

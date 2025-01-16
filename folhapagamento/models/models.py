@@ -163,7 +163,8 @@ class FolhaPagamento(models.Model):
             for line in record.salary_rule_line_ids:
                 if departamento_id and line.employee_id.department_id.id == departamento_id:
                     key = (line.employee_id.id, line.contract_id.id, line.employee_id.barcode,
-                           line.employee_id.x_nuit, line.employee_id.x_inss)
+                           line.employee_id.x_nuit, line.employee_id.x_inss,line.employee_id.birthday)
+
                     group_by_employee_contract[key]['employee_id'] = line.employee_id.id
                     group_by_employee_contract[key]['x_nuit'] = line.employee_id.x_nuit
                     group_by_employee_contract[key]['x_inss'] = line.employee_id.x_inss
@@ -176,6 +177,7 @@ class FolhaPagamento(models.Model):
                     key = (line.employee_id.id, line.contract_id.id, line.employee_id.barcode)
                     group_by_employee_contract[key]['employee_id'] = line.employee_id.id
                     group_by_employee_contract[key]['x_nuit'] = line.employee_id.x_nuit
+                    group_by_employee_contract[key]['birthday'] = line.employee_id.birthday
                     group_by_employee_contract[key]['x_inss'] = line.employee_id.x_inss
                     group_by_employee_contract[key]['contract_id'] = line.contract_id.id
                     group_by_employee_contract[key]['job_position'] = line.employee_id.job_id.name
