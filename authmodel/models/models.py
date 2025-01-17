@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 
 from odoo import models, fields, api
 from datetime import datetime, timedelta
@@ -24,6 +25,11 @@ class authmodel(models.Model):
     scope = fields.Char(string="Scope")
 
     def find_or_create_token(self, user_id=None, device=None, create=False):
+        _logger = logging.getLogger(__name__)
+        _logger.info("find_or_create_token chamado com: user_id=%s, device=%s, create=%s", user_id, device, create)
+
+        print("find_or_create_token chamado com: user_id=%s, device=%s, create=%s", user_id, device, create)
+
         if not user_id:
             user_id = self.env.user.id
 
@@ -47,9 +53,9 @@ class authmodel(models.Model):
                 "refresh": random_token(prefix='refresh'),
                 "scope": "userinfo",
             }
+            _logger.info("Criando novo token com valores: %s", vals)
             access_token = self.env['authmodel.authmodel'].sudo().create(vals)
 
-        # Agora retorna o registro completo, não apenas o token
         return access_token
 
     def is_valid(self, scopes=None):
@@ -93,6 +99,20 @@ class authmodel(models.Model):
         resource_scopes = set(scopes)
 
         return resource_scopes.issubset(provided_scopes)
+
+    @api.model
+    def cleanup_expired_tokens(self, _logger=None):
+        """Remove tokens cujo prazo de validade expirou."""
+        expired_tokens = self.sudo().search([
+            '|',
+            ('token_expiry_date', '<', fields.Datetime.now()),
+            ('refresh_expiry_date', '<', fields.Datetime.now())
+        ])
+        if expired_tokens:
+            expired_tokens.unlink()
+            print("Tokens expirados removidos: %s", len(expired_tokens))
+
+
 
 class Users(models.Model):
     _inherit = "res.users"

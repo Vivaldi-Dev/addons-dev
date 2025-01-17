@@ -13,13 +13,13 @@
 
                 <table class="table" style="width: 100%; border-collapse: collapse;">
                     <tr>
-                        <!-- Dirección -->
+
                         <td style="width: 40%; border: 1px solid black; padding: 10px; font-size: 12px;">
                             <p class="mb-0">Av. Base N`Tchinga nº 319</p>
                             <p>Bairro da Coop, Maputo – Mozambique</p>
                         </td>
 
-                        <!-- Información de la Empresa -->
+
                         <td style="width: 30%; border: 1px solid black; padding: 10px; text-align: end; font-size: 12px;">
                             <p class="mb-0" style="font-weight: bold;">Empresa:
                                 <span t-esc="doc.company_id.name"/>
@@ -28,9 +28,9 @@
                                 <p class="mb-0" style="font-weight: italic;">Departamento:
                                     <span t-esc="doc.departamento_id.name"/>
                                 </p>
-
                             </t>
                         </td>
+
                     </tr>
                 </table>
 
@@ -83,6 +83,7 @@
                             <td style="text-align: center; padding: 2px; border: 1px solid #000; font-size: 10px;">
                                 <t t-esc="counter"/>
                             </td>
+
                             <td style="text-align: center; padding: 2px; border: 1px solid #000;font-size: 10px;">
                                 <t t-esc="line.employee_id.name"/>
                             </td>
@@ -154,8 +155,7 @@
 
                             </td>
                         </tr>
-                        <!-- Linha de totais -->
-                        <!-- Linha de totais -->
+
                         <tr style="font-weight: bold; background-color: #f2f2f2; text-align: center; border: 1px solid #000;">
                             <td colspan="3" style="border: 1px solid #000;">Total</td>
                             <td style="border: 1px solid #000; font-size: 10px; padding: 3px; white-space: nowrap;">

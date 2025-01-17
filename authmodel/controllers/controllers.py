@@ -12,92 +12,13 @@ from datetime import datetime, timedelta
 
 class Authmodel(http.Controller):
 
-    # @http.route('/auth/signIn', auth='none', type="json", methods=['POST'], csrf=False, cors='*')
-    # def sign_in(self):
-    #     data = request.jsonrequest
-    #
-    #     username = data.get('username')
-    #     password = data.get('password')
-    #
-    #     if not username or not password:
-    #         return {
-    #             "status": "error",
-    #             "message": "Username ou password não foram fornecidos."
-    #         }
-    #
-    #     TABLE_USER = request.env['res.users']
-    #     user = TABLE_USER.sudo().search([("login", "=", username)], limit=1)
-    #
-    #     if not user:
-    #         return {
-    #             "status": "error",
-    #             "message": "Usuário não encontrado."
-    #         }
-    #
-    #     user_password = TABLE_USER.sudo().search([("password", "=", password)], limit=1)
-    #
-    #     if not user_password:
-    #         return {
-    #             "status": "error",
-    #             "message": "Credenciais inválidas."
-    #         }
-    #
-    #     access_token = request.env['authmodel.authmodel'].sudo().find_or_create_token(user_id=user.id, create=True)
-    #
-    #     if not access_token:
-    #         return {
-    #             "status": "error",
-    #             "message": "Não foi possível gerar o token de acesso."
-    #         }
-    #
-    #     refresh_token = request.env['authmodel.authmodel'].sudo().find_or_create_token(user_id=user.id, create=True)
-    #
-    #     if not refresh_token:
-    #         return {
-    #             "status": "error",
-    #             "message": "Não foi possível gerar o refresh token."
-    #         }
-    #
-    #     employee = request.env['hr.employee'].sudo().search([('user_id', '=', user.id)], limit=1)
-    #
-    #     employee_data = {
-    #         "employee_id": employee.id if employee else None,
-    #         "employee_name": employee.name if employee else None,
-    #         "job_position": employee.job_id.name if employee and employee.job_id else None,
-    #         "department": employee.department_id.name if employee and employee.department_id else None,
-    #         "work_phone": employee.work_phone if employee else None,
-    #         "work_email": employee.work_email if employee else None,
-    #     }
-    #
-    #     return DlinkHelper.JsonValidResponse({
-    #         "user": {
-    #             "id": user.id,
-    #             "name": user.name,
-    #             "email": user.email,
-    #             "login": user.login,
-    #             "active": user.active,
-    #         },
-    #         "company_name": {
-    #             "id": user.company_id.id,
-    #             "name": user.company_id.name,
-    #         },
-    #         "country": {
-    #             "id": request.env.user.country_id.id,
-    #             "name": user.country_id.name,
-    #         },
-    #         "contact_address": user.contact_address,
-    #
-    #         "employee": employee_data,
-    #
-    #         "access_token": access_token.token,
-    #         "refresh_token": refresh_token.refresh,
-    #     })
-
     @http.route("/api/auth/signIn", auth='none', type="json", methods=['POST'], csrf=False, cors='*')
     def api_logins(self):
         try:
             data = request.httprequest.data.decode()
             data = json.loads(data)
+
+            print("Dados recebidos no login: %s", data)
         except (json.JSONDecodeError, AttributeError):
             return {"error": "O corpo da solicitação deve ser um JSON válido", "code": 400}
 
@@ -135,6 +56,8 @@ class Authmodel(http.Controller):
         token_record = access_token_model.sudo().search([("user_id", "=", uid)], order="id DESC", limit=1)
         access_token_value = token_record.token if token_record else None
         refresh_token_value = token_record.refresh if token_record else None
+        token_expiry_date = token_record.token_expiry_date if token_record else None
+        refresh_expiry_date = token_record.refresh_expiry_date if token_record else None
 
         employee = request.env['hr.employee'].sudo().search([('user_id', '=', uid)], limit=1)
 
@@ -170,7 +93,10 @@ class Authmodel(http.Controller):
             "employee": employee_data,
             "access_token": access_token_value,
             "refresh_token": refresh_token_value,
+            "token_expiry_date": token_expiry_date,  # Hora de expiração do token
+            "refresh_expiry_date": refresh_expiry_date,  # Hora de expiração do refresh token
         }
+
 
     @token_required
     @http.route("/auth/logout", methods=["POST"], auth="none", csrf=False)

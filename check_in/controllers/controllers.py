@@ -107,7 +107,7 @@ class CheckIn(http.Controller):
         """
         try:
             data = request.jsonrequest
-            print(data)
+
             if not data:
                 return {'error': 'A requisição precisa conter dados.'}
 
@@ -219,7 +219,7 @@ class CheckIn(http.Controller):
         """
         try:
             data = request.jsonrequest
-            print(data)
+
             if not data:
                 return {'error': 'company is required'}
 
@@ -475,8 +475,8 @@ class CheckIn(http.Controller):
                     delta = now - now
                     number_of_days = 1.0
 
-                    print(delta)
-                    print(number_of_days)
+
+
 
                 request.env['hr.leave'].sudo().create({
                     'holiday_status_id': 7,
@@ -1039,13 +1039,13 @@ class CheckIn(http.Controller):
         except Exception as e:
             return {"error": f"An error occurred: {str(e)}"}
 
-    @http.route('/api/data/employee/', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    @http.route('/api/data/employee/', type='http', auth='none', cors='*', csrf=False, methods=['POST'])
     def employee_data(self, **kw):
         data = request.jsonrequest
         employee_id = data.get('employee_id')
         attendance_datetime = data.get('datetime')
 
-        print(data)
+
 
         Notification = request.env['attendance.notification'].sudo().create({
             'employee_id': employee_id,
@@ -1189,6 +1189,21 @@ class CheckIn(http.Controller):
             'is_read': is_read
         }
 
+    @http.route('/api/custom_response', type='json', auth='public', methods=['POST'])
+    def custom_response(self, **kwargs):
+        # Define tu respuesta personalizada
+        response_data = {
+            "status": "success",
+            "message": "Esta es una respuesta personalizada",
+            "data": kwargs
+        }
 
 
-
+        return Response(
+            json.dumps(response_data),
+            status=200,  # Código HTTP
+            headers=[
+                ('Content-Type', 'application/json'),
+                ('Content-Length', str(len(json.dumps(response_data))))
+            ]
+        )

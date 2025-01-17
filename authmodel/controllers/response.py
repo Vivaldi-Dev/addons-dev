@@ -18,17 +18,13 @@ class JsonRequestNew(JsonRequest):
         return super(JsonRequestNew, self)._json_response(result=result, error=error)
 
 
-class RootNew(http.Root):
-    def get_request(self, httprequest):
-        jsonResponse = super(RootNew, self).get_request(httprequest=httprequest)
-
-        if httprequest.mimetype in ("application/json", "application/json-rpc"):
-            return JsonRequestNew(httprequest)
-        else:
-            return jsonResponse
-
-
-http.root = RootNew()
+# class RootNew(http.Root):
+#     def get_request(self, httprequest):
+#         if httprequest.mimetype in ("application/json", "application/json-rpc"):
+#             return JsonRequestNew(httprequest)
+#         return super().get_request(httprequest)
+#
+# http.root = RootNew()
 
 
 @http.route('/api/custom/response', auth='public', type='json', methods=['GET'])
