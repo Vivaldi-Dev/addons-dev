@@ -16,6 +16,19 @@ class HolidaysType(models.Model):
 
     code = fields.Char(string='Code')
 
+    leave_type = fields.Selection([
+        ('admissao', 'Admissão'),
+        ('demissao', 'Demissão'),
+        ('retorno', 'Retorno'),
+        ('licenca_maternidade', 'Licença de Maternidade'),
+        ('acidente_trabalho', 'Acidente de Trabalho'),
+        ('servico_militar', 'Serviço Militar Obrigatório'),
+        ('doenca_profissional', 'Doença Profissional'),
+        ('doenca_pessoal', 'Doença Pessoal'),
+        ('falecimento', 'Falecimento'),
+        ('falta', 'Falta'),
+        ('subtrativa', 'Subtrativa')
+    ], string="Tipo de Licença",  default='admissao')
 
 class HolidaysRequest(models.Model):
     _inherit = "hr.leave"
@@ -26,3 +39,23 @@ class HolidaysRequest(models.Model):
         states={'cancel': [('readonly', True)], 'refuse': [('readonly', True)], 'validate1': [('readonly', True)],
                 'validate': [('readonly', True)]},
         domain=[])
+
+
+class HrPayslipRun(models.Model):
+    _inherit = 'hr.payslip.run'
+
+    company_id = fields.Many2one(
+        'res.company',
+        string='Company',
+        default=lambda self: self.env.company.id,
+        required=True,
+    )
+
+    @api.model
+    def search(self, args, offset=0, limit=None, order=None, count=False):
+        company_id = self.env.company.id
+        if company_id:
+            args = args or []
+            args.append(('company_id', '=', company_id))
+
+        return super(HrPayslipRun, self).search(args, offset=offset, limit=limit, order=order, count=count)

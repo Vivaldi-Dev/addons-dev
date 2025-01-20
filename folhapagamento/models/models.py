@@ -38,7 +38,7 @@ class FolhaPagamento(models.Model):
         comodel_name='hr.payslip',
         inverse_name='folhapagamento_id',
         string='Payslips',
-        store=True
+        # store=True
     )
 
     salary_rule_line_ids = fields.One2many(
@@ -52,7 +52,8 @@ class FolhaPagamento(models.Model):
         inverse_name='folhapagamento_id',
         string='Linhas Agregadas',
         compute='_compute_aggregated_salary_rule_lines',
-        store=True
+        store=False,
+        readonly=False,
     )
 
     state = fields.Selection(
@@ -133,7 +134,7 @@ class FolhaPagamento(models.Model):
             if self.departamento_id:
                 domain.append(('employee_id.department_id', '=', self.departamento_id.id))
 
-            # Buscar os payslips que correspondem ao domínio
+
             payslips = self.env['hr.payslip'].search(domain)
             print(f"Payslips encontrados: {payslips.ids}")
 

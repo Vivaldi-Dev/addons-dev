@@ -27,7 +27,6 @@
                     </group>
 
                     <searchpanel>
-
                         <field name="department_id" icon="fa-users" enable_counters="1"/>
                     </searchpanel>
 
@@ -89,7 +88,7 @@
         </record>
 
 
-        <menuitem name="Absent employee" id="absent_menu"
+        <menuitem name="Notification" id="absent_menu"
                   web_icon="notification,static/description/icon.png"
                   action="action_attendance_notification" sequence="80"/>
     </data>

@@ -37,9 +37,9 @@
         </field>
     </record>
 
-    <menuitem name="Absent employee" id="absent_menu"
-              web_icon="folhapagamento,static/description/icon.png"
-              action="action_absent" sequence="50"/>
+<!--    <menuitem name="Absent employee" id="absent_menu"-->
+<!--              web_icon="folhapagamento,static/description/icon.png"-->
+<!--              action="action_absent" sequence="50"/>-->
 
 
 

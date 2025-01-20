@@ -1,24 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <data>
-<!--
-        <template id="listing">
-          <ul>
-            <li t-foreach="objects" t-as="object">
-              <a t-attf-href="#{ root }/objects/#{ object.id }">
-                <t t-esc="object.display_name"/>
-              </a>
-            </li>
-          </ul>
-        </template>
-        <template id="object">
-          <h1><t t-esc="object.display_name"/></h1>
-          <dl>
-            <t t-foreach="object._fields" t-as="field">
-              <dt><t t-esc="field"/></dt>
-              <dd><t t-esc="object[field]"/></dd>
-            </t>
-          </dl>
-        </template>
--->
-    </data>
+    <template id="custom_messaging_menu" inherit_id="mail.MessagingMenu">
+        <xpath expr="//div[@class='o_MessagingMenu_toggler']" position="inside">
+            <button class="btn btn-primary o_custom_button" type="button" t-on-click="customAction">
+                Custom Button
+            </button>
+        </xpath>
+    </template>
 </odoo>

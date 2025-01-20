@@ -67,6 +67,44 @@ class CheckIn(http.Controller):
     @token_required
     @http.route('/api/monitoring/presents', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def presentes(self, **kw):
+        """
+        Handles the processing and querying of employee attendance information within a given company and date range.
+
+        Provides API functionality to retrieve attendance records for employees of a specific company based on the provided
+        `company_id`. If the date range `start_date` and/or `end_date` is not specified, defaults to include all attendance
+        records for the current day. Validates the input and computes the total number of employees and those present, returning
+        detailed attendance records in JSON format.
+
+        @param self: Instance of the class.
+        @param kw: Dictionary containing the request parameters passed in the POST request.
+
+        @parameters:
+            company_id: str
+                A required parameter representing the ID of the company whose employee attendance needs to be queried.
+                Must be included in the request data.
+            start_date: Optional[str]
+                The start of the date range to filter employee attendance.
+                If provided, it must be in the format "YYYY-MM-DD".
+                Defaults to the start of the current day if not specified.
+            end_date: Optional[str]
+                The end of the date range to filter employee attendance.
+                If provided, it must be in the format "YYYY-MM-DD".
+                Defaults to the end of the current day if not specified.
+
+        @raises:
+            KeyError:
+                Raised if `company_id` is missing from the request data.
+            ValueError:
+                Raised if `start_date` or `end_date` cannot be parsed in the expected date format.
+            Exception:
+                Catch-all for any unexpected errors encountered during processing.
+
+        @returns:
+            dict
+                JSON response detailing attendance information.
+                Includes the total number of employees, total presentes (those marked as present within the date range),
+                and a list of detailed attendance records. An error message is returned if processing fails.
+        """
         try:
             data = request.jsonrequest
 
@@ -83,8 +121,6 @@ class CheckIn(http.Controller):
 
             start_date = data.get('start_date')
             end_date = data.get('end_date')
-            page = int(data.get('page', 1))
-            limit = int(data.get('limit', 10))
 
             today = datetime.today()
 
@@ -116,6 +152,7 @@ class CheckIn(http.Controller):
             presentes = 0
 
             for employee in employees:
+
                 attendances = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', start_date),
@@ -123,8 +160,8 @@ class CheckIn(http.Controller):
                 ], order='check_in desc')
 
                 for attendance in attendances:
-                    check_in = attendance.check_in.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_in else ''
-                    check_out = attendance.check_out.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_out else ''
+                    check_in = attendance.check_in.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_in else None
+                    check_out = attendance.check_out.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_out else None
                     records.append({
                         'id': employee.id,
                         'job_position': employee.job_title,
@@ -137,18 +174,10 @@ class CheckIn(http.Controller):
 
             records = sorted(records, key=lambda x: x['check_in'], reverse=True)
 
-            # Paginação
-            start = (page - 1) * limit
-            end = start + limit
-            paginated_records = records[start:end]
-
             return {
                 'total_employees': total_employees,
                 'total_presentes': presentes,
-                'page': page,
-                'limit': limit,
-                'total_pages': (len(records) + limit - 1) // limit,
-                'records': paginated_records
+                'records': records
             }
 
         except Exception as e:
@@ -158,13 +187,41 @@ class CheckIn(http.Controller):
     @http.route('/api/monitoring/ausentes', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def ausentes(self, **kw):
         """
-        Processes and retrieves information about absent employees with pagination.
+        Processes and retrieves information about absent employees within a given company, based on attendance records and optional date filters.
+
+        Parameters:
+            **kw: dict
+                Additional keyword arguments from the HTTP request, which are expected to include the following:
+                  - company_id (int): Mandatory. The identifier of the company to filter employees.
+                  - start_date (str, optional): Start date for filtering attendance records in the format 'YYYY-MM-DD'.
+                  - end_date (str, optional): End date for filtering attendance records in the format 'YYYY-MM-DD'.
+
+        Returns:
+            dict: A dictionary containing a summary of absent employees, which includes:
+                  - total_employees (int): Total number of employees within the specified company.
+                  - total_ausentes (int): Number of employees marked as absent based on attendance data.
+                  - records (list): A list of dictionaries, each representing an absent employee, with the following details:
+                     - id (int): Employee ID.
+                     - name (str): Employee's name.
+                     - job_position (str): Job title of the employee.
+                     - check_in (None): No check-in record since it denotes absence.
+                     - check_out (None): No check-out record since it denotes absence.
+                     - status (str): Set to 'ausente'.
+
+        Raises:
+            KeyError: If the mandatory 'company_id' field is missing in the JSON request body.
+            ValueError: If 'start_date' or 'end_date' is not in the expected 'YYYY-MM-DD' format.
+
+        Notes:
+            The function validates the presence and format of the `company_id`, `start_date`, and `end_date` fields in the
+            incoming request. If both `start_date` and `end_date` are provided, their chronological order is also validated.
+            Employees with no attendance records during the specified period are considered absent.
         """
         try:
             data = request.jsonrequest
 
             if not data:
-                return {'error': 'A requisição precisa conter dados.'}
+                return {'error': 'company is required'}
 
             company_id = data.get('company_id')
             if not company_id:
@@ -177,61 +234,52 @@ class CheckIn(http.Controller):
             start_date = data.get('start_date')
             end_date = data.get('end_date')
 
-            # Handle date parsing
             if start_date:
                 try:
                     start_date = datetime.strptime(start_date, '%Y-%m-%d')
                 except ValueError:
-                    return {'error': 'O campo "start_date" deve estar no formato "YYYY-MM-DD".'}
+                    return {
+                        'error': 'O campo "start_date" deve estar no formato "YYYY-MM-DD" (ex.: "2025-01-01").'}
             if end_date:
                 try:
                     end_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1, seconds=-1)
                 except ValueError:
-                    return {'error': 'O campo "end_date" deve estar no formato "YYYY-MM-DD".'}
+                    return {
+                        'error': 'O campo "end_date" deve estar no formato "YYYY-MM-DD" (ex.: "2025-01-05").'}
 
             if start_date and end_date and start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            # Fetch employees
             employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
             total_employees = len(employees)
 
             records = []
             ausentes = 0
 
-            # Pagination parameters
-            page = int(data.get('page', 1))
-            limit = int(data.get('limit', 10))
-            offset = (page - 1) * limit
-
-            # Process absent employees
             for employee in employees:
+
                 attendances = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', start_date) if start_date else (),
                     ('check_in', '<', end_date) if end_date else ()
                 ])
 
+
                 if not attendances:
                     records.append({
                         'id': employee.id,
                         'name': employee.name,
                         'job_position': employee.job_title,
-                        'check_in': "",
-                        'check_out': "",
+                        'check_in': None,
+                        'check_out': None,
                         'status': 'ausente'
                     })
                     ausentes += 1
 
-            # Paginate records
-            paginated_records = records[offset:offset + limit]
-
             return {
                 'total_employees': total_employees,
                 'total_ausentes': ausentes,
-                'current_page': page,
-                'total_pages': (len(records) + limit - 1) // limit,
-                'records': paginated_records
+                'records': records
             }
 
         except Exception as e:
@@ -426,6 +474,9 @@ class CheckIn(http.Controller):
 
                     delta = now - now
                     number_of_days = 1.0
+
+
+
 
                 request.env['hr.leave'].sudo().create({
                     'holiday_status_id': 7,
@@ -748,94 +799,40 @@ class CheckIn(http.Controller):
 
         return overtime_info
 
-    @http.route("/api/all/employees", auth='none', methods=['GET'], csrf=False)
-    def all_employees(self, **kwargs):
+    @http.route('/api/all/employees', type='json', auth='none', methods=['POST'], csrf=False)
+    def all_employee(self):
+        company_id = request.httprequest.args.get('company_id')
+        employee_id = request.httprequest.args.get('id')
+        employee_name = request.httprequest.args.get('name')
 
-        company_id = kwargs.get('company_id')
         if not company_id:
-            return Response(
-                json.dumps({'error': 'O parâmetro "id" (company_id) é obrigatório.'}),
-                content_type='application/json',
-                status=400
-            )
+            return {'error': 'O campo "company_id" é obrigatório.'}
 
-        try:
-            company_id = int(company_id)
-        except ValueError:
-            return Response(
-                json.dumps({'error': 'O parâmetro "id" (company_id) deve ser um número inteiro válido.'}),
-                content_type='application/json',
-                status=400
-            )
+        domain = [('company_id', '=', int(company_id))]
 
-        domain = [('company_id', '=', company_id)]
+        if employee_id:
+            domain.append(('id', '=', int(employee_id)))
 
-        if 'employee_id' in kwargs:
-            try:
-                employee_id = int(kwargs['employee_id'])
-                domain.append(('id', '=', employee_id))
-            except ValueError:
-                return Response(
-                    json.dumps({'error': 'O parâmetro "employee_id" deve ser um número inteiro válido.'}),
-                    content_type='application/json',
-                    status=400
-                )
+        if employee_name:
+            domain.append(('name', 'ilike', employee_name))
 
-        if 'name' in kwargs:
-            domain.append(('name', 'ilike', kwargs['name']))
+        employees = request.env['hr.employee'].sudo().search(domain)
 
-        if 'x_ativo' in kwargs:
-            x_ativo = kwargs['x_ativo'].lower() in ['true', '1', 't']
-            domain.append(('x_ativo', '=', x_ativo))
-
-        try:
-            limit = int(kwargs.get('limit', 10))
-            page = int(kwargs.get('page', 1))
-        except ValueError:
-            return Response(
-                json.dumps({'error': 'Os parâmetros "limit" e "page" devem ser números inteiros válidos.'}),
-                content_type='application/json',
-                status=400
-            )
-
-        offset = (page - 1) * limit
-
-        employees = request.env['hr.employee'].sudo().search(domain, offset=offset, limit=limit)
-
-        total_count = request.env['hr.employee'].sudo().search_count(domain)
-
-        if not employees:
-            return Response(
-                json.dumps({'error': 'Nenhum funcionário encontrado para os critérios especificados.'}),
-                content_type='application/json',
-                status=404
-            )
-
-        data_info = [
+        employees_info = [
             {
                 'id': employee.id,
                 'name': employee.name,
-                'email': employee.user_id.login if employee.user_id else '',
+                'email': employee.user_id.login,
                 'x_ativo': employee.x_ativo,
+                'address_home_id': employee.address_home_id.bank_ids[
+                    0].bank_id.name if employee.address_home_id.bank_ids else False,
+                'address_cc_id': employee.address_home_id.bank_ids[
+                    0].acc_number if employee.address_home_id.bank_ids else False,
             }
             for employee in employees
         ]
 
-        response_data = {
-            'data': data_info,
-            'pagination': {
-                'total_records': total_count,
-                'total_pages': (total_count + limit - 1) // limit,
-                'current_page': page,
-                'records_per_page': limit,
-            }
-        }
-
-        return Response(
-            json.dumps(response_data),
-            content_type='application/json',
-            status=200
-        )
+        return employees_info
 
     @http.route('/api/employees', type='json', auth='none', methods=['PUT'], csrf=False)
     def update_employee_notifications(self):
@@ -1048,6 +1045,8 @@ class CheckIn(http.Controller):
         employee_id = data.get('employee_id')
         attendance_datetime = data.get('datetime')
 
+
+
         Notification = request.env['attendance.notification'].sudo().create({
             'employee_id': employee_id,
             'check_in': attendance_datetime,
@@ -1173,6 +1172,7 @@ class CheckIn(http.Controller):
         is_read = data.get('is_read', False)
 
         if not notification_id:
+
             return {'error': 'Notification ID is required'}
 
         notification = request.env['attendance.notification'].sudo().search([('id', '=', notification_id)], limit=1)
@@ -1191,12 +1191,13 @@ class CheckIn(http.Controller):
 
     @http.route('/api/custom_response', type='json', auth='public', methods=['POST'])
     def custom_response(self, **kwargs):
-
+        # Define tu respuesta personalizada
         response_data = {
             "status": "success",
             "message": "Esta es una respuesta personalizada",
             "data": kwargs
         }
+
 
         return Response(
             json.dumps(response_data),

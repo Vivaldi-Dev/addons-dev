@@ -307,46 +307,63 @@ class PayrollAbsent(models.Model):
             absent_employees = all_employees.filtered(lambda e: e.id not in checked_in_employee_ids)
             record.absent_employees = absent_employees
 
+    import logging
+    from datetime import datetime, timedelta
+
+    _logger = logging.getLogger(__name__)
+
     @api.model
-    def ausentes(self):
+    def ausentes(self, _logger=None):
         now = datetime.now()
         current_hour = now.hour
         current_minute = now.minute
         current_weekday = now.weekday()
 
-        if current_weekday == 6:
-            print(f"[INFO] O método 'ausentes' não foi acionado porque é domingo. Hora atual: {now}.")
+        if current_weekday == 6:  # Domingo
+            _logger.info("O método 'ausentes' não foi acionado. Hoje é domingo, não há trabalho.")
             return
 
-        if current_hour == 0 and current_minute == 0:
-            # print(f"[INFO] O método 'ausentes' foi acionado em {now}. Verificando ausências...")
+        if current_weekday == 0:
 
+            date_to_check = now - timedelta(days=2)
+        else:
+
+            date_to_check = now - timedelta(days=1)
+
+        if current_hour == 0 and current_minute == 0:
             holiday_status = self.env['hr.leave.type'].sudo().search([('name', '=', 'Falta')], limit=1)
             if not holiday_status:
-                print("[ERROR] Não foi encontrado um status de férias com o nome 'Falta'.")
+                _logger.error("Não foi encontrado um status de férias com o nome 'Falta'.")
                 return
 
-            employees = self.env['hr.employee'].sudo().search([('id', '=', '20')])
+            employees = self.env['hr.employee'].sudo().search([])
             for employee in employees:
-                attendance = self.env['hr.attendance'].search([
+
+                attendances = self.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
-                    ('check_in', '!=', False)
+                    ('check_in', '>=', date_to_check.replace(hour=0, minute=0, second=0)),
+                    ('check_in', '<=', date_to_check.replace(hour=23, minute=59, second=59))
                 ], limit=1)
 
-                if not attendance:
 
+                if not attendances:
                     self.env['hr.leave'].sudo().create({
                         'holiday_status_id': holiday_status.id,
                         'employee_id': employee.id,
-                        'date_from': now,
-                        'date_to': now,
-                        'request_date_from': now,
-                        'request_date_to': now,
+                        'date_from': date_to_check,
+                        'date_to': date_to_check,
+                        'request_date_from': date_to_check,
+                        'request_date_to': date_to_check,
                         'number_of_days': 1.0,
                         'duration_display': 1.0,
                     })
+                    _logger.info("Falta registrada para o funcionário %s (ID: %s) no dia %s.",
+                                 employee.name, employee.id, date_to_check.date())
                 else:
-                    print(f"[INFO] Funcionário {employee.name} presente (check-in encontrado).")
+                    _logger.info("Funcionário %s (ID: %s) presente no dia %s (check-in encontrado).",
+                                 employee.name, employee.id, date_to_check.date())
         else:
-            print(f"[INFO] O método 'ausentes' não foi acionado {current_hour} e {current_minute}. Hora atual: {now}.")
+            _logger.info("O método 'ausentes' não foi acionado fora do horário programado. Hora atual: %s.", now)
+
+
 

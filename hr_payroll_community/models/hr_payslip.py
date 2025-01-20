@@ -611,6 +611,8 @@ class HrPayslipRun(models.Model):
                                  help="If its checked, indicates that all payslips generated from here are refund "
                                       "payslips.")
 
+
+
     def draft_payslip_run(self):
         return self.write({'state': 'draft'})
 

@@ -53,7 +53,7 @@
 
                         <page string="Detalhes por Categoria de Regra Salarial">
                             <field name="aggregated_salary_rule_lines">
-                                <tree string="Detalhes Agregados de Regra Salarial">
+                                <tree string="Detalhes Agregados de Regra Salarial" editable="bottom">
                                     <field name="code"/>
                                     <field name="employee_id"/>
                                     <field name="job_position"/>
