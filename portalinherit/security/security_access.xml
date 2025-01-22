@@ -1,0 +1,64 @@
+<!--<?xml version="1.0" encoding="UTF-8" ?>-->
+<!--<odoo>-->
+
+<!--    <record id="permissao" model="ir.module.category">-->
+<!--        <field name="name">Requisição de Materia</field>-->
+<!--    </record>-->
+
+<!--    <record id="permissaosub" model="ir.module.category">-->
+<!--        <field name="name">Responsaveis</field>-->
+<!--        <field name="parent_id" ref="portalinherit.permissao"/>-->
+<!--    </record>-->
+
+<!--        <record id="acess_student_admin_level_group" model="res.groups">-->
+<!--            <field name="name">Logistica</field>-->
+<!--            <field name="category_id" ref="portalinherit.permissaosub"/>-->
+<!--        </record>-->
+
+<!--    <record id="acess_student_low_level_group" model="res.groups">-->
+<!--        <field name="name">Tecnico Residente</field>-->
+<!--        <field name="category_id" ref="portalinherit.permissaosub"/>-->
+<!--    </record>-->
+
+<!--    <record id="acess_student_mid_level_group" model="res.groups">-->
+<!--        <field name="name">Eg.Responsavel</field>-->
+<!--        <field name="category_id" ref="portalinherit.permissaosub"/>-->
+<!--    </record>-->
+
+<!--    <record id="access_stock_picking_technician" model="ir.model.access">-->
+<!--        <field name="name">Access Technician Picking</field>-->
+<!--        <field name="model_id" ref="stock.model_stock_picking"/>-->
+<!--        <field name="group_id" ref="portalinherit.acess_student_low_level_group"/>-->
+<!--        <field name="perm_read" eval="True"/>-->
+<!--        <field name="perm_read" eval="True"/>-->
+<!--        <field name="perm_write" eval="True"/>-->
+<!--        <field name="perm_create" eval="True"/>-->
+<!--        <field name="perm_unlink" eval="True"/>-->
+
+<!--    </record>-->
+
+<!--    <record id="access_stock_picking_logistica" model="ir.model.access">-->
+<!--        <field name="name">Access Technician Picking</field>-->
+<!--        <field name="model_id" ref="stock.model_stock_picking"/>-->
+<!--        <field name="group_id" ref="portalinherit.acess_student_admin_level_group"/>-->
+<!--        <field name="perm_read" eval="True"/>-->
+<!--        <field name="perm_read" eval="True"/>-->
+<!--        <field name="perm_write" eval="True"/>-->
+<!--        <field name="perm_create" eval="True"/>-->
+<!--        <field name="perm_unlink" eval="True"/>-->
+
+<!--    </record>-->
+
+
+<!--    <record id="access_stock_picking_manager" model="ir.model.access">-->
+<!--        <field name="name">Access Manager Picking</field>-->
+<!--        <field name="model_id" ref="stock.model_stock_picking"/>-->
+<!--        <field name="group_id" ref="portalinherit.acess_student_mid_level_group"/>-->
+<!--        <field name="perm_read" eval="True"/>-->
+<!--        <field name="perm_write" eval="True"/>-->
+<!--        <field name="perm_create" eval="True"/>-->
+<!--        <field name="perm_unlink" eval="True"/>-->
+<!--    </record>-->
+
+
+<!--</odoo>-->

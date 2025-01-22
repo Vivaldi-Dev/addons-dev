@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <template id="on_sucess_submit" name="Thanks you page">
+        <t t-call="website.layout">
+            <div class="wrap">
+                <div class="container">
+                    <div class="col-md-12">
+                        <div class="alert alert-success">
+                            Thanks you for contacting
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </t>
+
+    </template>
+
+
+</odoo>

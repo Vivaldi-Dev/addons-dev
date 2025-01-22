@@ -1,0 +1,32 @@
+<odoo>
+
+    <!--        <record id="stock.action_picking_tree_all" model="ir.actions.act_window">-->
+    <!--            <field name="name">Transferencias</field>-->
+    <!--            <field name="domain">[('create_uid','=',uid)]</field>-->
+    <!--            &lt;!&ndash; Atribua a ação aos grupos apropriados &ndash;&gt;-->
+    <!--            <field name="groups_id" eval="[(4, ref('portalinherit.access_low_level_group'))]"/>-->
+    <!--            <field name="groups_id" eval="[(4, ref('portalinherit.access_mid_level_group'))]"/>-->
+    <!--            <field name="groups_id" eval="[(4, ref('portalinherit.access_admin_level_group'))]"/>-->
+    <!--        </record>-->
+
+
+    <!--    <record id="action_test" model="ir.actions.act_window">-->
+    <!--        <field name="name">Transferencias</field>-->
+    <!--        <field name="type">ir.actions.act_window</field>-->
+    <!--        <field name="res_model">stock.picking</field>-->
+    <!--        <field name="view_mode">tree,form</field>-->
+    <!--        <field name="domain" eval="[-->
+    <!--        ('create_uid','=',uid),-->
+    <!--        '|',-->
+    <!--        ('tecnico_residente','=',uid),-->
+    <!--        ('engenheiros_responsaveis','=',uid)-->
+    <!--    ]"/>-->
+    <!--        <field name="view_id" ref="stock.vpicktree"/>-->
+    <!--    </record>-->
+
+
+
+
+</odoo>
+
+

@@ -3,7 +3,10 @@ from datetime import date, datetime, time
 from odoo import api, fields, models, tools, _
 from pytz import timezone
 import babel
+import logging
+from datetime import datetime, timedelta
 
+_logger = logging.getLogger(__name__)
 
 class HrPayslip(models.Model):
     _inherit = 'hr.payslip'
@@ -307,11 +310,6 @@ class PayrollAbsent(models.Model):
             absent_employees = all_employees.filtered(lambda e: e.id not in checked_in_employee_ids)
             record.absent_employees = absent_employees
 
-    import logging
-    from datetime import datetime, timedelta
-
-    _logger = logging.getLogger(__name__)
-
     @api.model
     def ausentes(self, _logger=None):
         now = datetime.now()
@@ -333,7 +331,8 @@ class PayrollAbsent(models.Model):
         if current_hour == 0 and current_minute == 0:
             holiday_status = self.env['hr.leave.type'].sudo().search([('name', '=', 'Falta')], limit=1)
             if not holiday_status:
-                _logger.error("Não foi encontrado um status de férias com o nome 'Falta'.")
+                print("Não foi encontrado um status de férias com o nome 'Falta'.")
+
                 return
 
             employees = self.env['hr.employee'].sudo().search([])
@@ -344,7 +343,6 @@ class PayrollAbsent(models.Model):
                     ('check_in', '>=', date_to_check.replace(hour=0, minute=0, second=0)),
                     ('check_in', '<=', date_to_check.replace(hour=23, minute=59, second=59))
                 ], limit=1)
-
 
                 if not attendances:
                     self.env['hr.leave'].sudo().create({
@@ -357,13 +355,16 @@ class PayrollAbsent(models.Model):
                         'number_of_days': 1.0,
                         'duration_display': 1.0,
                     })
-                    _logger.info("Falta registrada para o funcionário %s (ID: %s) no dia %s.",
+
+                    print("Falta registrada para o funcionário %s (ID: %s) no dia %s.",
                                  employee.name, employee.id, date_to_check.date())
                 else:
-                    _logger.info("Funcionário %s (ID: %s) presente no dia %s (check-in encontrado).",
+
+                    print("Funcionário %s (ID: %s) presente no dia %s (check-in encontrado).",
                                  employee.name, employee.id, date_to_check.date())
         else:
-            _logger.info("O método 'ausentes' não foi acionado fora do horário programado. Hora atual: %s.", now)
+
+            print("O método 'ausentes' não foi acionado fora do horário programado. Hora atual: %s.", now)
 
 
 

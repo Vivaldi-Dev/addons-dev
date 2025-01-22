@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <template id="Dashboardvol" name="Dashboard">
+        <t t-call="website.layout">
+            <style>
+                :root {
+                --main-bg-color: #009d63;
+                --main-text-color: #009d63;
+                --second-text-color: #bbbec5;
+                --second-bg-color: #c1efde;
+                }
+
+                .primary-text {
+                color: var(--main-text-color);
+                }
+
+                .second-text {
+                color: var(--second-text-color);
+                }
+
+                .primary-bg {
+                background-color: var(--main-bg-color);
+                }
+
+                .secondary-bg {
+                background-color: var(--second-bg-color);
+                }
+
+                .rounded-full {
+                border-radius: 100%;
+                }
+
+                #wrapper {
+                overflow-x: hidden;
+                 background-color: #cbd5e1;
+                }
+
+                .box{
+
+                border-radius: 12px;
+                margin-bottom: 10px;
+                background-color:#FFFF99;
+
+                }
+                .box1{
+
+                border-radius: 12px;
+                margin-bottom: 10px;
+                background-color:#FF9999;
+
+                }
+
+
+                #sidebar-wrapper {
+                min-height: 100vh;
+                margin-left: -15rem;
+                -webkit-transition: margin 0.25s ease-out;
+                -moz-transition: margin 0.25s ease-out;
+                -o-transition: margin 0.25s ease-out;
+                transition: margin 0.25s ease-out;
+                }
+
+                #sidebar-wrapper .sidebar-heading {
+                padding: 0.875rem 1.25rem;
+                font-size: 1.2rem;
+                }
+
+                #sidebar-wrapper .list-group {
+                width: 15rem;
+                }
+
+                #page-content-wrapper {
+                min-width: 100vw;
+                }
+
+                #wrapper.toggled #sidebar-wrapper {
+                margin-left: 0;
+                }
+
+                #menu-toggle {
+                cursor: pointer;
+                }
+
+                .list-group-item {
+                border: none;
+                padding: 20px 30px;
+                }
+
+                .list-group-item.active {
+                background-color: transparent;
+                color: var(--main-text-color);
+                font-weight: bold;
+                border: none;
+                }
+
+                @media (min-width: 768px) {
+                #sidebar-wrapper {
+                margin-left: 0;
+                }
+
+                #page-content-wrapper {
+                min-width: 0;
+                width: 100%;
+                }
+
+                #wrapper.toggled #sidebar-wrapper {
+                margin-left: -15rem;
+                }
+                }
+
+
+            </style>
+            <section class="DashboarD">
+                <div class="d-flex" id="wrapper">
+
+
+                    <div id="page-content-wrapper">
+
+
+                        <div class="container-fluid px-4 mt-5">
+                            <div class="row g-3 my-2" id="rowto">
+                                <div class="col-md-4 ">
+                                    <div class="p-3 bg-white shadow-sm d-flex justify-content-around align-items-center box">
+                                        <div>
+                                            <h3 class="fs-2">720</h3>
+                                            <p class="fs-5">Products</p>
+                                        </div>
+                                        <i class="fas fa-gift fs-1 primary-text border rounded-full secondary-bg p-3"></i>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4 ">
+                                    <div class="p-3 bg-white shadow-sm d-flex justify-content-around align-items-center  box">
+                                        <div>
+                                            <h3 class="fs-2">4920</h3>
+                                            <p class="fs-5">Sales</p>
+                                        </div>
+                                        <i class="fas fa-hand-holding-usd fs-1 primary-text border rounded-full secondary-bg p-3"></i>
+                                        <i class="fa-solid fa-hourglass-end fs-1 primary-text border rounded-full secondary-bg p-3"></i>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4 ">
+                                    <div class="p-3 bg-white shadow-sm d-flex justify-content-around align-items-center box1">
+                                        <div>
+                                            <h3 class="fs-2">3899</h3>
+                                            <p class="fs-5">Delivery</p>
+                                        </div>
+                                        <i class="fas fa-truck fs-1 primary-text border rounded-full secondary-bg p-3"></i>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4 ">
+                                    <div class="p-3 bg-white shadow-sm d-flex justify-content-around align-items-center box">
+                                        <div>
+                                            <h3 class="fs-2">%25</h3>
+                                            <p class="fs-5">Increase</p>
+                                        </div>
+                                        <i class="fas fa-chart-line fs-1 primary-text border rounded-full secondary-bg p-3"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div class="row my-5">
+
+                                <div class="col">
+                                    <table class="table bg-white rounded shadow-sm  table-hover" id="tabela">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col" width="50">#</th>
+                                                <th scope="col">Product</th>
+                                                <th scope="col">Customer</th>
+                                                <th scope="col">Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <th scope="row">1</th>
+                                                <td>Television</td>
+                                                <td>Jonny</td>
+                                                <td>$1200</td>
+                                            </tr>
+
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <section>
+                <script>
+                    var el = document.getElementById("wrapper");
+                    var toggleButton = document.getElementById("menu-toggle");
+
+                    toggleButton.onclick = function () {
+                    el.classList.toggle("toggled");
+                    };
+                </script>
+            </section>
+        </t>
+    </template>
+</odoo>

@@ -137,7 +137,6 @@ class CheckIn(http.Controller):
 
             records = sorted(records, key=lambda x: x['check_in'], reverse=True)
 
-            # Paginação
             start = (page - 1) * limit
             end = start + limit
             paginated_records = records[start:end]
@@ -177,7 +176,6 @@ class CheckIn(http.Controller):
             start_date = data.get('start_date')
             end_date = data.get('end_date')
 
-            # Handle date parsing
             if start_date:
                 try:
                     start_date = datetime.strptime(start_date, '%Y-%m-%d')
@@ -192,19 +190,19 @@ class CheckIn(http.Controller):
             if start_date and end_date and start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            # Fetch employees
+
             employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
             total_employees = len(employees)
 
             records = []
             ausentes = 0
 
-            # Pagination parameters
+
             page = int(data.get('page', 1))
             limit = int(data.get('limit', 10))
             offset = (page - 1) * limit
 
-            # Process absent employees
+
             for employee in employees:
                 attendances = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
@@ -223,7 +221,6 @@ class CheckIn(http.Controller):
                     })
                     ausentes += 1
 
-            # Paginate records
             paginated_records = records[offset:offset + limit]
 
             return {
@@ -240,6 +237,7 @@ class CheckIn(http.Controller):
     @http.route('/api/monitoring/percentages', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def percentages(self, **kw):
         try:
+
             data = request.jsonrequest
             date_from = data.get('date_from')
             date_to = data.get('date_to')
@@ -254,11 +252,14 @@ class CheckIn(http.Controller):
             except ValueError:
                 return {'error': "Formato de data inválido. Use 'YYYY-MM-DD'"}
 
-            employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
+            if start_date > end_date:
+                return {'error': "'date_from' não pode ser maior que 'date_to'"}
 
+            employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
             total_employees = len(employees)
+
             if total_employees == 0:
-                return http.Response(
+                return Response(
                     json.dumps({'error': 'Nenhum funcionário encontrado para a companhia fornecida'}),
                     content_type='application/json',
                     status=400
@@ -267,20 +268,44 @@ class CheckIn(http.Controller):
             presentes = 0
             ausentes = 0
 
-            for employee in employees:
-                attendance = request.env['hr.attendance'].sudo().search([
-                    ('employee_id', '=', employee.id),
-                    ('check_in', '>=', datetime.combine(start_date, datetime.min.time())),
-                    ('check_in', '<=', datetime.combine(end_date, datetime.max.time()))
-                ])
+            attendance_by_day = []
 
-                if attendance:
-                    presentes += 1
-                else:
-                    ausentes += 1
+            current_date = start_date
+            while current_date <= end_date:
+
+                if current_date.weekday() == 6:
+                    current_date += timedelta(days=1)
+                    continue
+
+                presentes_dia = 0
+                ausentes_dia = 0
+
+                for employee in employees:
+                    attendance = request.env['hr.attendance'].sudo().search([
+                        ('employee_id', '=', employee.id),
+                        ('check_in', '>=', datetime.combine(current_date, datetime.min.time())),
+                        ('check_in', '<=', datetime.combine(current_date, datetime.max.time()))
+                    ])
+
+                    if attendance:
+                        presentes_dia += 1
+                    else:
+                        ausentes_dia += 1
+
+                presentes += presentes_dia
+                ausentes += ausentes_dia
+
+                attendance_by_day.append({
+                    'date': current_date.strftime('%Y-%m-%d'),
+                    'day_of_week': current_date.strftime('%A'),
+                    'presentes': presentes_dia,
+                    'ausentes': ausentes_dia,
+                })
+
+                current_date += timedelta(days=1)
 
             percentage_presentes = round((presentes / total_employees) * 100) if total_employees > 0 else 0
-            percentage_ausentes = round((ausentes / total_employees) * 100) if total_employees > 0 else 0
+            percentage_ausentes = 100 - percentage_presentes
 
             response_data = {
                 'date_from': date_from,
@@ -290,7 +315,8 @@ class CheckIn(http.Controller):
                 'presentes': presentes,
                 'ausentes': ausentes,
                 'percentage_presentes': f'{percentage_presentes}%',
-                'percentage_ausentes': f'{percentage_ausentes}%'
+                'percentage_ausentes': f'{percentage_ausentes}%',
+                'attendance_by_day': attendance_by_day
             }
 
             return response_data
@@ -1097,74 +1123,102 @@ class CheckIn(http.Controller):
 
     @http.route('/api/report/overtime', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
     def overtime(self, **kw):
-        data = request.jsonrequest
-        company_id = data.get('company_id')
-        start_date_str = data.get('start_date')
-        end_date_str = data.get('end_date')
-
-        if not company_id or not start_date_str or not end_date_str:
-            return {'error': 'Company ID, start_date, and end_date are required'}
-
         try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-        except ValueError:
-            return {'error': 'Invalid date format. Use YYYY-MM-DD'}
+            data = request.jsonrequest
+            company_id = data.get('company_id')
+            start_date_str = data.get('start_date')
+            end_date_str = data.get('end_date')
 
-        if start_date > end_date:
-            return {'error': 'start_date cannot be greater than end_date'}
+            if not company_id or not start_date_str or not end_date_str:
+                return {'error': 'Company ID, start_date, and end_date are required'}
 
-        current_year = datetime.now().year
-        current_month = datetime.now().month
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            except ValueError:
+                return {'error': 'Invalid date format. Use YYYY-MM-DD'}
 
-        if start_date.year == current_year and end_date.year == current_year:
-            if end_date.month > current_month:
-                return {'error': 'You cannot request a report for future months in the current year'}
+            if start_date > end_date:
+                return {'error': 'start_date cannot be greater than end_date'}
 
-        employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
-        total_employees = len(employees)
+            current_year = datetime.now().year
+            current_month = datetime.now().month
 
-        attendances = request.env['hr.attendance'].sudo().search([
-            ('employee_id', 'in', employees.ids),
-            ('check_in', '>=', start_date),
-            ('check_in', '<=', end_date + timedelta(days=1))
-        ])
+            if start_date.year == current_year and end_date.year == current_year:
+                if end_date.month > current_month:
+                    return {'error': 'You cannot request a report for future months in the current year'}
 
-        present_employee_ids = attendances.mapped('employee_id.id')
-        total_present = len(present_employee_ids)
-        total_absent = total_employees - total_present
+            employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+            total_employees = len(employees)
 
-        present_employees = []
-        absent_employees = []
+            attendances = request.env['hr.attendance'].sudo().search([
+                ('employee_id', 'in', employees.ids),
+                ('check_in', '>=', start_date),
+                ('check_in', '<=', end_date + timedelta(days=1))
+            ])
 
-        for employee in employees:
-            if employee.id in present_employee_ids:
-                present_employees.append({
-                    'id': employee.id,
-                    'name': employee.name
+            # Inicializa o relatório diário e os totais globais
+            daily_report = []
+            global_present_count = 0
+            global_absent_count = 0
+            current_date = start_date
+
+            while current_date <= end_date:
+                # Obtém os registros de presença para o dia atual
+                day_start = datetime.combine(current_date, datetime.min.time())
+                day_end = datetime.combine(current_date, datetime.max.time())
+                daily_attendances = attendances.filtered(
+                    lambda a: day_start <= a.check_in <= day_end
+                )
+
+                # Identifica os IDs dos funcionários presentes e ausentes
+                present_ids = daily_attendances.mapped('employee_id.id')
+                absent_ids = list(set(employees.ids) - set(present_ids))
+
+                # Conta os presentes e ausentes do dia atual
+                present_count = len(present_ids)
+                absent_count = len(absent_ids)
+
+                # Atualiza os totais globais
+                global_present_count += present_count
+                global_absent_count += absent_count
+
+                # Adiciona os dados ao relatório diário
+                daily_report.append({
+                    'date': current_date.strftime('%Y-%m-%d'),
+                    'day_of_week': current_date.strftime('%A'),
+                    'present_count': present_count,
+                    'absent_count': absent_count,
+                    'present_employees': [
+                        {'id': emp.id, 'name': emp.name} for emp in employees if emp.id in present_ids
+                    ],
+                    'absent_employees': [
+                        {'id': emp.id, 'name': emp.name} for emp in employees if emp.id in absent_ids
+                    ]
                 })
-            else:
-                absent_employees.append({
-                    'id': employee.id,
-                    'name': employee.name
-                })
 
-        report_data = {
-            'company_id': company_id,
-            'date_range': {
-                'start_date': start_date.strftime('%Y-%m-%d'),
-                'end_date': end_date.strftime('%Y-%m-%d')
-            },
-            'counts': {
+                # Avança para o próximo dia
+                current_date += timedelta(days=1)
+
+            # Monta os dados finais do relatório
+            report_data = {
+                'company_id': company_id,
+                'date_range': {
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d')
+                },
                 'total_employees': total_employees,
-                'total_present': total_present,
-                'total_absent': total_absent
-            },
-            'present_employees': present_employees,
-            'absent_employees': absent_employees
-        }
+                'global_summary': {
+                    'total_present': global_present_count,
+                    'total_absent': global_absent_count
+                },
+                'daily_report': daily_report
+            }
 
-        return report_data
+            return report_data
+
+        except Exception as e:
+            return {'error': str(e)}
 
     @http.route('/api/notification/read', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
     def set_notification_read(self, **kw):

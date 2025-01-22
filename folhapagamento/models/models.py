@@ -18,16 +18,18 @@ class FolhaPagamento(models.Model):
     name = fields.Char(string='Descrição')
 
     month = fields.Selection(
-        [('01', 'January'), ('02', 'February'), ('03', 'March'), ('04', 'April'), ('05', 'May'),
-         ('06', 'June'), ('07', 'July'), ('08', 'August'), ('09', 'September'), ('10', 'October'),
-         ('11', 'November'), ('12', 'December')],
+        [
+            ('01', _('January')), ('02', _('February')), ('03', _('March')), ('04', _('April')),
+            ('05', _('May')), ('06', _('June')), ('07', _('July')), ('08', _('August')),
+            ('09', _('September')), ('10', _('October')), ('11', _('November')), ('12', _('December')),
+        ],
         string='Month',
         required=True,
         help='Month related to the payroll'
     )
 
     year = fields.Selection(
-        [(str(year), str(year)) for year in range(2000, datetime.now().year + 2)],
+        [(str(year), str(year)) for year in range(2020, datetime.now().year + 2)],
 
         string='Ano',
         default=str(datetime.now().year),

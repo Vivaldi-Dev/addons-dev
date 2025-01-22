@@ -62,11 +62,12 @@ class Recibo(models.Model):
         compute='_compute_linhas_agregadas',
         store=True,
         order='employee_id asc',
+        readonly=True,
     )
 
     Payslip_Worked = fields.One2many(
         comodel_name='hr.payslip.worked_days',
-        inverse_name='folha_id',  # Define o campo Many2one como referência
+        inverse_name='folha_id',
         string='Payslip Worked Hours'
     )
     estado = fields.Selection(

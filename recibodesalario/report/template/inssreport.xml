@@ -9,9 +9,9 @@
                             <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
                                 <div>
 
-                                    <div style="display: flex; align-items: center; justify-content: center; " >
+                                    <div style="display: flex; align-items: center; justify-content: center; margin-bottom:10px;">
                                         <img src="/recibodesalario/static/img/Emblem_of_Mozambique.svg.png" alt=""
-                                             style="width: 30px;"/>
+                                             style="width: 60px;"/>
                                     </div>
 
                                     <h6 style="margin: 0;text-align: center;">República de Moçambique</h6>
@@ -21,59 +21,112 @@
                             </div>
                         </div>
 
-                        <t t-set="counter" t-value="0"/>
 
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; text-align: center; font-size: 10px;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 5px; vertical-align: middle; font-size: 10px;">
-                                        Nº
-                                    </th>
-                                    <th rowspan="2"
-                                        style="border: 1px solid #000; padding: 5px; vertical-align: middle; font-size: 10px;">
-                                        Nomes completos
-                                    </th>
-                                    <th colspan="2" style="border: 1px solid #000; padding: 5px; font-size: 10px;">Data
-                                        de Nascimento
-                                    </th>
-                                    <th colspan="2" style="border: 1px solid #000; padding: 5px; font-size: 10px;">Rem.
-                                        Diversas
-                                    </th>
-                                    <th rowspan="2"
-                                        style="border: 1px solid #000; padding: 5px; vertical-align: middle; font-size: 10px;">
-                                        Comissões<br/>Bônus e Indem.
-                                    </th>
-                                    <th rowspan="2"
-                                        style="border: 1px solid #000; padding: 5px; vertical-align: middle; font-size: 10px;">
-                                        Subs. Férias,<br/>retribuição por<br/>substituição de gozo férias
-                                    </th>
-                                    <th rowspan="2"
-                                        style="border: 1px solid #000; padding: 5px; vertical-align: middle; font-size: 10px;">
-                                        Grupo de Escala
-                                    </th>
-                                    <th rowspan="2"
-                                        style="border: 1px solid #000; padding: 5px; vertical-align: middle; font-size: 10px;">
-                                        Incapacidade Ac. de Trab.<br/>Doença Prof.
-                                    </th>
-                                    <th rowspan="2"
-                                        style="border: 1px solid #000; padding: 5px; vertical-align: middle; font-size: 10px;">
-                                        Observações<br/>Total das Colunas
-                                    </th>
-                                </tr>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 5px; font-size: 10px;">Dia/Mês/Ano</th>
-                                    <th style="border: 1px solid #000; padding: 5px; font-size: 10px;">Dias</th>
-                                    <th style="border: 1px solid #000; padding: 5px; font-size: 10px;">Importância</th>
-                                    <th style="border: 1px solid #000; padding: 5px; font-size: 10px;">Importância</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <t t-foreach="sorted(doc.linhas_agregadas, key=lambda line: line.employee_id.name)"
-                                   t-as="line">
+                        <div style="font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10px;">
+                            <div class="table-container" style="margin: 20px; overflow-x: auto;">
+                                <table style="border-collapse: collapse; width: 100%; table-layout: fixed;">
+                                    <thead>
+                                        <tr>
+                                            <th rowspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Números
+                                            </th>
+                                            <th rowspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Nomes completos
+                                            </th>
+                                            <th rowspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Data de Nascimento
+                                            </th>
+                                            <th colspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Rem. Diversas
+                                            </th>
+                                            <th rowspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Comissões<br/>Bônus e Indem.
+                                            </th>
+                                            <th rowspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Subs. Férias,<br/>retribuição por<br/>subst. de gozo férias
+                                            </th>
+                                            <th rowspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Grupo de Escala
+                                            </th>
+                                            <th rowspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Incapacidade<br/>Acid. de Trab.<br/>Doença Prof.
+                                            </th>
+                                            <th rowspan="2"
+                                                style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Observações
+                                            </th>
+                                        </tr>
+                                        <tr>
+                                            <th style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                Dias
+                                            </th>
+                                            <th style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; background-color: #f2f2f2; font-weight: bold; font-size: 10px;">
+                                                salário base
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
 
-                                </t>
-                            </tbody>
-                        </table>
+                                        <t t-foreach="sorted(doc.linhas_agregadas, key=lambda line: line.employee_id.name)"
+                                           t-as="line">
+                                            <tr>
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+
+                                                    <t t-esc="line.numero_contribuinte"/>
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+                                                    <t t-esc="line.employee_id.name"/>
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+                                                    <t t-esc="line.birthday"/>
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+                                                    <t t-esc="(line.worked_days - line.total_leaves )"/>
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+                                                    <t t-esc="line.basic_amount"/>
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+                                                    <t t-esc="line.job_position"/>
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+
+                                                </td>
+
+                                                <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
+
+                                                </td>
+                                            </tr>
+
+                                        </t>
+
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                     </div>
                 </t>
             </t>

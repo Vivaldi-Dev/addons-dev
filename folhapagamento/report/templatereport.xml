@@ -16,9 +16,15 @@
 
                         <td style="width: 40%; border: 1px solid black; padding: 10px; font-size: 12px;">
                             <p class="mb-0">Av. Base N`Tchinga nº 319</p>
-                            <p>Bairro da Coop, Maputo – Mozambique</p>
-                        </td>
+                            <p style=" margin-bottom: 0px ">Bairro da Coop, Maputo – Mozambique</p>
+                            <p>
+                                Data :
+                                <t t-esc="dict(doc._fields['month'].selection).get(doc.month)"/>
+                                de
+                                <t t-esc="doc.year"/>
+                            </p>
 
+                        </td>
 
                         <td style="width: 30%; border: 1px solid black; padding: 10px; text-align: end; font-size: 12px;">
                             <p class="mb-0" style="font-weight: bold;">Empresa:
@@ -107,7 +113,7 @@
                                    t-value="total_he + (line.horasextrasc + line.horasextrascem)"/>
                             </td>
 
-                           <td style="text-align: center; padding: 2px; border: 1px solid #000; font-size: 10px; white-space: nowrap;">
+                            <td style="text-align: center; padding: 2px; border: 1px solid #000; font-size: 10px; white-space: nowrap;">
 
                                 <t t-esc="round((line.basic_amount) + (line.inc_amount) + (line.horasextrascem) + (line.horasextrasc), 2)"/>
                                 <t t-set="total_rem"

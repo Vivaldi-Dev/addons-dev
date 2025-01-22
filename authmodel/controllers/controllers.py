@@ -93,8 +93,8 @@ class Authmodel(http.Controller):
             "employee": employee_data,
             "access_token": access_token_value,
             "refresh_token": refresh_token_value,
-            "token_expiry_date": token_expiry_date,  # Hora de expiração do token
-            "refresh_expiry_date": refresh_expiry_date,  # Hora de expiração do refresh token
+            "token_expiry_date": token_expiry_date,
+            "refresh_expiry_date": refresh_expiry_date,
         }
 
 
