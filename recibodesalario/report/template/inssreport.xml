@@ -127,6 +127,105 @@
                             </div>
                         </div>
 
+
+                        <div style="font-family: Arial, sans-serif; margin: 20px;">
+                            <div class="table-container" style="display: flex; justify-content: space-between;">
+
+                                <table style="border-collapse: collapse; width: 35%; font-size: 10px;">
+                                    <thead>
+                                        <tr>
+                                            <th colspan="2"
+                                                style="text-align: center; font-weight: bold; border: 1px solid black; padding: 4px;">
+                                                A PREENCHER PELA ENTIDADE EMPREGADORA
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="2"
+                                                style="text-align: right; border: 1px solid black; padding: 4px;">
+                                                ___ , ___ de Maio de ___ 2021
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"
+                                                style="border: 1px solid black; padding: 4px; height: 30px; text-align: center;">
+                                                (Assinatura e carimbo)
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"
+                                                style="text-align: center; font-weight: bold; border: 1px solid black; padding: 4px;">
+                                                CÁLCULO DAS CONTRIBUIÇÕES A DEPOSITAR
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">7% S/Total Pago</td>
+                                            <td style="border: 1px solid black; padding: 4px; text-align: right;">
+                                                442,135.80 MT
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">(Totais das colunas
+                                                5/6/7)
+                                            </td>
+                                            <td style="border: 1px solid black; padding: 4px; text-align: right;">
+                                                6,316,225.67 MT
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">Arredondamento</td>
+                                            <td style="border: 1px solid black; padding: 4px; text-align: right;">0.00
+                                                MT
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">Total a depositar</td>
+                                            <td style="border: 1px solid black; padding: 4px; text-align: right;">
+                                                442,135.80 MT
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <table style="border-collapse: collapse; width: 35%; font-size: 10px;">
+                                    <thead>
+                                        <tr>
+                                            <th colspan="2"
+                                                style="text-align: center; font-weight: bold; border: 1px solid black; padding: 4px;">
+                                                A PREENCHER PELO INSTITUTO
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">MT</td>
+                                            <td style="border: 1px solid black; padding: 4px;"></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">MT</td>
+                                            <td style="border: 1px solid black; padding: 4px;"></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">MT</td>
+                                            <td style="border: 1px solid black; padding: 4px;"></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">Conferida</td>
+                                            <td style="border: 1px solid black; padding: 4px;"></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">Data</td>
+                                            <td style="border: 1px solid black; padding: 4px; text-align: center;">___ /
+                                                ___ / ___
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+
                     </div>
                 </t>
             </t>

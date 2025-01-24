@@ -190,18 +190,15 @@ class CheckIn(http.Controller):
             if start_date and end_date and start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-
             employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
             total_employees = len(employees)
 
             records = []
             ausentes = 0
 
-
             page = int(data.get('page', 1))
             limit = int(data.get('limit', 10))
             offset = (page - 1) * limit
-
 
             for employee in employees:
                 attendances = request.env['hr.attendance'].sudo().search([
@@ -1259,4 +1256,74 @@ class CheckIn(http.Controller):
                 ('Content-Type', 'application/json'),
                 ('Content-Length', str(len(json.dumps(response_data))))
             ]
+        )
+
+    @http.route('/api/custom_response/', type='http', auth='public', methods=['GET'])
+    def custom_response(self,**kwargs):
+
+
+        employee_id = kwargs.get('id')
+        employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
+
+        print(kwargs)
+
+        if not employee:
+            return {'error': f'Funcionário com ID {employee_id} não encontrado.'}
+
+        response = []
+
+        notifications = request.env['attendance.notification'].sudo().search([
+            ('employee_id', '=', employee.id)
+        ])
+        notifications_info = []
+
+        for notification in notifications:
+            notifications_info.append({
+                'id': notification.id,
+                'name': notification.employee_id.name,
+                'is_read': notification.is_read,
+                'check_in': notification.check_in.strftime('%Y-%m-%d') if notification.check_in else 'N/A' ,
+                'check_out':notification.check_out.strftime('%Y-%m-%d') if notification.check_out else 'N/A',
+            })
+
+        return  werkzeug.wrappers.Response(json.dumps(notifications_info) ,headers={'Content-Type': 'application/json'} , status=200)
+
+    @http.route('/api/week/', type='http', auth='public', methods=['GET'])
+    def week(self, **kwargs):
+
+        records = request.env['hr.employee'].sudo().search([])
+
+        info_employees = []
+        for employee in records:
+
+            attendance_ids = employee.resource_calendar_id.attendance_ids
+            attendance_info = []
+
+            if attendance_ids:
+
+                for attendance in attendance_ids:
+                    attendance_info.append({
+                        'id': attendance.id,
+                        'name': attendance.name,
+                        'hour_from': attendance.hour_from,
+                        'hour_to': attendance.hour_to,
+                    })
+
+                info_employees.append({
+                    'employee_id': employee.id,
+                    'name': employee.name,
+                    'attendance_info': attendance_info,
+                })
+            else:
+
+                info_employees.append({
+                    'id': employee.id,
+                    'name': employee.name,
+                    'attendance_info': [],
+                })
+
+        return werkzeug.wrappers.Response(
+            json.dumps(info_employees),
+            headers={'Content-Type': 'application/json'},
+            status=200
         )

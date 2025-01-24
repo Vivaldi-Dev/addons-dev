@@ -40,7 +40,7 @@ class FolhaPagamento(models.Model):
         comodel_name='hr.payslip',
         inverse_name='folhapagamento_id',
         string='Payslips',
-        # store=True
+        store=True
     )
 
     salary_rule_line_ids = fields.One2many(
