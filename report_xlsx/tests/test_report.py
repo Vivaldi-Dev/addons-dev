@@ -17,8 +17,7 @@ class TestReport(common.TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # Remove this variable in v16 and put instead:
-        # from odoo.addons.base.tests.common import DISABLED_MAIL_CONTEXT
+
         DISABLED_MAIL_CONTEXT = {
             "tracking_disable": True,
             "mail_create_nolog": True,
@@ -45,25 +44,25 @@ class TestReport(common.TransactionCase):
 
     def test_id_retrieval(self):
 
-        # Typical call from WebUI with wizard
+
         objs = self.xlsx_report._get_objs_for_report(
             False, {"context": {"active_ids": self.docs.ids}}
         )
         self.assertEqual(objs, self.docs)
 
-        # Typical call from within code not to report_action
+
         objs = self.xlsx_report.with_context(
             active_ids=self.docs.ids
         )._get_objs_for_report(False, False)
         self.assertEqual(objs, self.docs)
 
-        # Typical call from WebUI
+
         objs = self.xlsx_report._get_objs_for_report(
             self.docs.ids, {"data": [self.report_name, self.report.report_type]}
         )
         self.assertEqual(objs, self.docs)
 
-        # Typical call from render
+
         objs = self.xlsx_report._get_objs_for_report(self.docs.ids, {})
         self.assertEqual(objs, self.docs)
 

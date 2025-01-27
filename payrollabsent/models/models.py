@@ -4,11 +4,13 @@ from odoo import api, fields, models, tools, _
 from pytz import timezone
 import babel
 import logging
+from pytz import timezone
 from datetime import datetime, timedelta
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 _logger = logging.getLogger(__name__)
 
+MAPUTO_TZ = timezone('Africa/Maputo')
 
 # class HrPayslip(models.Model):
 #     _inherit = 'hr.payslip'
@@ -384,38 +386,51 @@ class HolidaysRequest(models.Model):
 
         info_employees = []
         for employee in records:
+
+
             attendances = employee.resource_calendar_id.attendance_ids.filtered(
                 lambda a: int(a.dayofweek) == day_of_week
             )
 
+            if not attendances:
+                continue
+
             morning_from = None
+            morning_to = None
+            afternoon_from = None
             afternoon_to = None
 
             for attendance in attendances:
                 if attendance.day_period == 'morning':
                     morning_from = attendance.hour_from
+                    morning_to = attendance.hour_to
                 elif attendance.day_period == 'afternoon':
+                    afternoon_from = attendance.hour_from
                     afternoon_to = attendance.hour_to
 
-            hour_from = morning_from
-            hour_to = afternoon_to
+            if morning_from and morning_to:
+                try:
+                    datetime_morning_from = datetime.strptime(f"{int(morning_from):02d}:00", "%H:%M")
+                    datetime_morning_to = datetime.strptime(f"{int(morning_to):02d}:00", "%H:%M")
+                    info_employees.append({
+                        'employee_id': employee.id,
+                        'hour_from': datetime_morning_from,
+                        'hour_to': datetime_morning_to,
+                    })
+                except ValueError as e:
+                    raise ValueError(f"Erro ao processar horários de manhã para o funcionário {employee.name}: {e}")
 
-            if isinstance(hour_from, float) and isinstance(hour_to, float):
-                hour_from = str(timedelta(hours=hour_from))[:-3]
-                hour_to = str(timedelta(hours=hour_to))[:-3]
-
-            try:
-
-                datetime_hour_from = datetime.strptime(hour_from, "%H:%M")
-                datetime_hour_to = datetime.strptime(hour_to, "%H:%M")
-            except ValueError:
-                raise ValueError(f"Formato inválido para hora: {hour_from} ou {hour_to}")
-
-            info_employees.append({
-                'employee_id': employee.id,
-                'hour_from': datetime_hour_from,
-                'hour_to': datetime_hour_to,
-            })
+            if afternoon_from and afternoon_to:
+                try:
+                    datetime_afternoon_from = datetime.strptime(f"{int(afternoon_from):02d}:00", "%H:%M")
+                    datetime_afternoon_to = datetime.strptime(f"{int(afternoon_to):02d}:00", "%H:%M")
+                    info_employees.append({
+                        'employee_id': employee.id,
+                        'hour_from': datetime_afternoon_from,
+                        'hour_to': datetime_afternoon_to,
+                    })
+                except ValueError as e:
+                    raise ValueError(f"Erro ao processar horários da tarde para o funcionário {employee.name}: {e}")
 
         return info_employees
 

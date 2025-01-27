@@ -12,4 +12,3 @@ class websocket(models.Model):
     message = fields.Text()
     description = fields.Text()
 
-

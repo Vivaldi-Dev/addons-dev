@@ -100,7 +100,7 @@
                                                 </td>
 
                                                 <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
-
+                                                        <t t-esc="line.inc_amount"/>
                                                 </td>
 
                                                 <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">

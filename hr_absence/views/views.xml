@@ -1,0 +1,69 @@
+<odoo>
+
+    <record id="view_hr_absence_form" model="ir.ui.view">
+
+        <field name="name">hr.absence.form</field>
+        <field name="model">hr.absence</field>
+        <field name="arch" type="xml">
+            <form string="Faltas">
+
+                <sheet>
+                    <group>
+                        <field name="description"/>
+                        <field name="date_start"/>
+                        <field name="date_end"/>
+                        <field name="company_id"/>
+                    </group>
+
+                    <group>
+                        <field name="departamento_id"/>
+                        <field name="company_id"/>
+                    </group>
+
+
+                    <notebook>
+                        <page string="Funcionarios ausentes">
+                            <field name="absence_info_ids">
+                                <tree string="absences">
+                                    <field name="employee_id"/>
+                                    <field name="job_position"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+
+                </sheet>
+
+
+            </form>
+
+        </field>
+    </record>
+
+    <record id="view_hr_absence_tree" model="ir.ui.view">
+        <field name="name">hr.absence.tree</field>
+        <field name="model">hr.absence</field>
+        <field name="arch" type="xml">
+            <tree string="Folha de Pagamento">
+                <field name="date_start"/>
+                <field name="date_end"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_hr_absence" model="ir.actions.act_window">
+        <field name="name">Absences</field>
+        <field name="res_model">hr.absence</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Sem dados adicionados ainda
+            </p>
+        </field>
+    </record>
+
+    <menuitem name="Absence" id="Absence_menu"
+              web_icon="folhapagamento,static/description/icon.png"
+              action="action_hr_absence" sequence="70"/>
+
+</odoo>
