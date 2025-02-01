@@ -12,6 +12,7 @@ _logger = logging.getLogger(__name__)
 
 MAPUTO_TZ = timezone('Africa/Maputo')
 
+
 # class HrPayslip(models.Model):
 #     _inherit = 'hr.payslip'
 #
@@ -347,20 +348,22 @@ class HolidaysRequest(models.Model):
                     ('check_out', '>=', date_to_check_date),
                 ], limit=1)
 
+                if attendances:
+                    print("Funcionário %s já possui presença registrada para o dia %s.", employee.name,
+                          date_to_check_date)
+                    continue
+
+
                 overlapping_leave = self.env['hr.leave'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('holiday_status_id', '=', holiday_status.id),
-                    '|',
-                    ('request_date_from', '<=', date_to_check_date),
-                    ('request_date_to', '>=', date_to_check_date),
+                    ('date_from', '<=', date_to_check_date),
+                    ('date_to', '>=', date_to_check_date),
                 ], limit=1)
 
-                if attendances or overlapping_leave:
-                    if _logger:
-                        _logger.info(
-                            "Funcionário %s já possui ausência ou presença registrada para o dia %s.",
-                            employee.name, date_to_check_date
-                        )
+                if overlapping_leave:
+                    print("Funcionário %s já possui ausência registrada para o dia %s.", employee.name,
+                          date_to_check_date)
                     continue
 
                 self.env['hr.leave'].sudo().create({
@@ -386,7 +389,6 @@ class HolidaysRequest(models.Model):
 
         info_employees = []
         for employee in records:
-
 
             attendances = employee.resource_calendar_id.attendance_ids.filtered(
                 lambda a: int(a.dayofweek) == day_of_week

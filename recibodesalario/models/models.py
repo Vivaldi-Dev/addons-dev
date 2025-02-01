@@ -43,7 +43,6 @@ class Recibo(models.Model):
 
     year = fields.Selection(
         [(str(year), str(year)) for year in range(2015, datetime.now().year + 2)],
-
         string='Ano',
         default=str(datetime.now().year),
         help='Ano relacionado ao pagamento'
@@ -213,8 +212,22 @@ class Recibo(models.Model):
                 ('state', 'in', ['confirm', 'refuse'])
             ])
 
-            total_leaves = sum((leave.date_to - leave.date_from).days + 1 for leave in leaves)
-            unique_codes = set(leave.holiday_status_id.code for leave in leaves if leave.holiday_status_id.code)
+            name_absent = ''
+            leave_type = ''
+            total_leaves = 0
+            unique_codes = set()
+            data_check_in = False
+
+            for leave in leaves:
+                total_leaves += (leave.date_to - leave.date_from).days + 1
+                if leave.holiday_status_id:
+                    unique_codes.add(leave.holiday_status_id.code)
+                    name_absent = leave.holiday_status_id.name
+                    leave_type = leave.holiday_status_id.leave_type
+
+                if not data_check_in or leave.date_from < data_check_in:
+                    data_check_in = leave.date_from
+
             code_absent = ', '.join(unique_codes)
 
             bank_account_number = False
@@ -253,6 +266,10 @@ class Recibo(models.Model):
                 'worked_days': total_worked_days,
                 'total_leaves': total_leaves,
                 'code_absent': code_absent,
+                'name_absent': name_absent,
+                'leave_type': leave_type,
+                'data_check_in': data_check_in,
+
             }
 
             linha_existente = AggregatedLine.search([
@@ -297,19 +314,25 @@ class AggregatedLine(models.Model):
     basic_amount = fields.Float(string='BASIC')
     inc_amount = fields.Float(string='INC')
     gross_amount = fields.Float(string='GROSS')
+
     inss_amount = fields.Float(string='INSS')
     irps_amout = fields.Float(string='IRPS')
+
     irps_amout_positivo = fields.Float(string='IRPS')
     inss_amount_positivo = fields.Float(string='INSS')
 
     net_amount = fields.Float(string='NET')
     total_amount = fields.Float(string='Total Amount')
+
     code = fields.Char(string='Código')
     descontoatraso = fields.Float(string="Desconto p/ Atrasos")
+
     descotofaltasdias = fields.Float(string="Total de Faltas em Dias")
     emprestimos = fields.Float(string="Emprestimos")
+
     fundofunebre = fields.Float(string="Fundo Fundo")
     horasextrascem = fields.Float(string="Horas Extras 100%")
+
     horasextrasc = fields.Float(string="Horas Extras 50%")
     outrosdescontos = fields.Float(string="Outros Descontos")
 
@@ -324,10 +347,16 @@ class AggregatedLine(models.Model):
 
     code_absent = fields.Char(string="Codigo da falta")
 
+    name_absent = fields.Char(string="Nome da falta")
+
+    leave_type = fields.Char(string="Tipo de falta")
+    data_check_in = fields.Date(string="")
+
     worked_days = fields.Float(string='Dias Trabalhados')
     total_leaves = fields.Float(string='Total de Faltas')
 
     birthday = fields.Date(string="Data de Aniversário",)
+
 
     def action_example_method(self):
         return {

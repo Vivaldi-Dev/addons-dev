@@ -2,16 +2,16 @@
 
 <odoo>
 
-    <report
-            id="recibo_report"
-            string="Recibo de Salario"
-            model="recibo.recibo"
-            report_type="qweb-pdf"
-            name="recibodesalario.recibo_report_template"
-            file="recibodesalario.recibo_report_template"
-            print_report_name=" 'Recibo Salarial - %s' % (object.descricao or 'Relatório')"
+<!--    <report-->
+<!--            id="recibo_report"-->
+<!--            string="Recibo de Salario"-->
+<!--            model="recibo.recibo"-->
+<!--            report_type="qweb-pdf"-->
+<!--            name="recibodesalario.recibo_report_template"-->
+<!--            file="recibodesalario.recibo_report_template"-->
+<!--            print_report_name=" 'Recibo Salarial - %s' % (object.descricao or 'Relatório')"-->
 
-    />
+<!--    />-->
 
     <report
             id="recibodesalario_report_excel"

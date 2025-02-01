@@ -1154,33 +1154,33 @@ class CheckIn(http.Controller):
                 ('check_in', '<=', end_date + timedelta(days=1))
             ])
 
-            # Inicializa o relatório diário e os totais globais
+
             daily_report = []
             global_present_count = 0
             global_absent_count = 0
             current_date = start_date
 
             while current_date <= end_date:
-                # Obtém os registros de presença para o dia atual
+
                 day_start = datetime.combine(current_date, datetime.min.time())
                 day_end = datetime.combine(current_date, datetime.max.time())
                 daily_attendances = attendances.filtered(
                     lambda a: day_start <= a.check_in <= day_end
                 )
 
-                # Identifica os IDs dos funcionários presentes e ausentes
+
                 present_ids = daily_attendances.mapped('employee_id.id')
                 absent_ids = list(set(employees.ids) - set(present_ids))
 
-                # Conta os presentes e ausentes do dia atual
+
                 present_count = len(present_ids)
                 absent_count = len(absent_ids)
 
-                # Atualiza os totais globais
+
                 global_present_count += present_count
                 global_absent_count += absent_count
 
-                # Adiciona os dados ao relatório diário
+
                 daily_report.append({
                     'date': current_date.strftime('%Y-%m-%d'),
                     'day_of_week': current_date.strftime('%A'),
@@ -1194,10 +1194,10 @@ class CheckIn(http.Controller):
                     ]
                 })
 
-                # Avança para o próximo dia
+
                 current_date += timedelta(days=1)
 
-            # Monta os dados finais do relatório
+
             report_data = {
                 'company_id': company_id,
                 'date_range': {
@@ -1327,3 +1327,24 @@ class CheckIn(http.Controller):
             headers={'Content-Type': 'application/json'},
             status=200
         )
+
+    @http.route('/api/time_off/', type='http', auth='public', methods=['GET'])
+    def time_off(self, **kwargs):
+
+        records = request.env['hr.leave'].sudo().search([])
+
+        info_employees = []
+
+        for holy in records:
+            info_employees.append({
+                'employee_id': holy.employee_id.name,
+                'holiday_status_id': holy.holiday_status_id.name,
+                'leave_type': holy.holiday_status_id.leave_type,
+                'code':holy.holiday_status_id.code,
+                'date_from': holy.date_from.strftime('%Y-%m-%d'),
+                'date_to': holy.date_to.strftime('%Y-%m-%d'),
+                'state': holy.state,
+            })
+        return werkzeug.wrappers.Response(json.dumps(info_employees), headers={'Content-Type': 'application/json'})
+
+

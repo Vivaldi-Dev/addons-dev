@@ -5,6 +5,7 @@
             <t t-call="web.html_container">
                 <t t-foreach="docs" t-as="doc">
                     <div style="font-family: Arial, sans-serif; margin: 0; padding: 0; color: #333;">
+
                         <div style="padding: 20px;">
                             <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
                                 <div>
@@ -79,7 +80,6 @@
                                            t-as="line">
                                             <tr>
                                                 <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
-
                                                     <t t-esc="line.numero_contribuinte"/>
                                                 </td>
 
@@ -92,7 +92,7 @@
                                                 </td>
 
                                                 <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
-                                                    <t t-esc="(line.worked_days - line.total_leaves )"/>
+                                                    <t t-esc="'{:.0f}'.format(line.worked_days - line.total_leaves)"/>
                                                 </td>
 
                                                 <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
@@ -100,11 +100,10 @@
                                                 </td>
 
                                                 <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
-                                                        <t t-esc="line.inc_amount"/>
+                                                    <t t-esc="line.inc_amount"/>
                                                 </td>
 
                                                 <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
-
                                                 </td>
 
                                                 <td style="border: 1px solid #000; text-align: center; padding: 5px; word-wrap: break-word; font-size: 10px;">
@@ -153,78 +152,52 @@
                                                 (Assinatura e carimbo)
                                             </td>
                                         </tr>
+
                                         <tr>
                                             <td colspan="2"
                                                 style="text-align: center; font-weight: bold; border: 1px solid black; padding: 4px;">
                                                 CÁLCULO DAS CONTRIBUIÇÕES A DEPOSITAR
                                             </td>
                                         </tr>
+
                                         <tr>
-                                            <td style="border: 1px solid black; padding: 4px;">7% S/Total Pago</td>
-                                            <td style="border: 1px solid black; padding: 4px; text-align: right;">
-                                                442,135.80 MT
-                                            </td>
-                                        </tr>
-                                        <tr>
+
                                             <td style="border: 1px solid black; padding: 4px;">(Totais das colunas
                                                 5/6/7)
                                             </td>
+
+
+                                            <td style="border: 1px solid black; padding: 4px; text-align: right;">
+                                                <t t-esc="(line.inc_amount + line.basic_amount)"/>
+                                            </td>
+                                        </tr>
+
+                                        <tr>
+                                            <td style="border: 1px solid black; padding: 4px;">7% S/Total Pago</td>
                                             <td style="border: 1px solid black; padding: 4px; text-align: right;">
                                                 6,316,225.67 MT
                                             </td>
                                         </tr>
+
                                         <tr>
                                             <td style="border: 1px solid black; padding: 4px;">Arredondamento</td>
                                             <td style="border: 1px solid black; padding: 4px; text-align: right;">0.00
                                                 MT
                                             </td>
                                         </tr>
+
                                         <tr>
                                             <td style="border: 1px solid black; padding: 4px;">Total a depositar</td>
                                             <td style="border: 1px solid black; padding: 4px; text-align: right;">
                                                 442,135.80 MT
                                             </td>
                                         </tr>
+
                                     </tbody>
                                 </table>
 
-                                <table style="border-collapse: collapse; width: 35%; font-size: 10px;">
-                                    <thead>
-                                        <tr>
-                                            <th colspan="2"
-                                                style="text-align: center; font-weight: bold; border: 1px solid black; padding: 4px;">
-                                                A PREENCHER PELO INSTITUTO
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td style="border: 1px solid black; padding: 4px;">MT</td>
-                                            <td style="border: 1px solid black; padding: 4px;"></td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid black; padding: 4px;">MT</td>
-                                            <td style="border: 1px solid black; padding: 4px;"></td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid black; padding: 4px;">MT</td>
-                                            <td style="border: 1px solid black; padding: 4px;"></td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid black; padding: 4px;">Conferida</td>
-                                            <td style="border: 1px solid black; padding: 4px;"></td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border: 1px solid black; padding: 4px;">Data</td>
-                                            <td style="border: 1px solid black; padding: 4px; text-align: center;">___ /
-                                                ___ / ___
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
-
 
                     </div>
                 </t>
@@ -232,3 +205,4 @@
         </t>
     </template>
 </odoo>
+

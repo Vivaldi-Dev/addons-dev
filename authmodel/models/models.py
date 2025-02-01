@@ -21,7 +21,6 @@ class authmodel(models.Model):
     token_expiry_date = fields.Datetime(string="Token Expiry Date", required=True)
     refresh_expiry_date = fields.Datetime(string="Refresh Expiry Date", required=True)
     device = fields.Char("Device ID")
-
     scope = fields.Char(string="Scope")
 
     def find_or_create_token(self, user_id=None, device=None, create=False):
@@ -102,7 +101,7 @@ class authmodel(models.Model):
 
     @api.model
     def cleanup_expired_tokens(self, _logger=None):
-        """Remove tokens cujo prazo de validade expirou."""
+
         expired_tokens = self.sudo().search([
             '|',
             ('token_expiry_date', '<', fields.Datetime.now()),
@@ -111,7 +110,6 @@ class authmodel(models.Model):
         if expired_tokens:
             expired_tokens.unlink()
             print("Tokens expirados removidos: %s", len(expired_tokens))
-
 
 
 class Users(models.Model):

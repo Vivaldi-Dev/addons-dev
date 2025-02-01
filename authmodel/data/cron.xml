@@ -1,6 +1,5 @@
 <odoo>
     <data noupdate="1">
-
         <record id="ir_cron_cleanup_expired_tokens" model="ir.cron">
             <field name="name">Limpar Tokens Expirados</field>
             <field name="model_id" ref="model_authmodel_authmodel"/>
