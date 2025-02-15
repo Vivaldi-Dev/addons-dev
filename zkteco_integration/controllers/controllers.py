@@ -1,5 +1,7 @@
 import threading
 import asyncio
+
+import pytz
 import websockets
 from odoo import http
 from odoo.exceptions import UserError
@@ -9,8 +11,8 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
-
 class ZKTecoController(http.Controller):
+
     @http.route('/iclock/cdata', auth='none', methods=['GET', 'POST'], csrf=False)
     def receive_records(self, **kwargs):
         if request.httprequest.method == 'POST':
@@ -30,6 +32,9 @@ class ZKTecoController(http.Controller):
             work_area = machine.address_id
             data_lines = post_content.splitlines()
 
+            maputo_tz = pytz.timezone("Africa/Maputo")
+            utc_tz = pytz.utc
+
             for line in data_lines:
                 fields = line.split('\t')
                 if len(fields) < 10:
@@ -44,53 +49,63 @@ class ZKTecoController(http.Controller):
                     continue
 
                 try:
-                    attendance_datetime = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+                    # print(f"Recebendo timestamp original da máquina: {timestamp}")
+
+
+                    attendance_datetime = maputo_tz.localize(datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S'))
+
+                    attendance_datetime_utc = attendance_datetime.astimezone(utc_tz).replace(tzinfo=None)
+
+                    # print(f"Timestamp convertido para datetime (UTC naive): {attendance_datetime_utc}")
+
                 except ValueError:
                     _logger.warning(f"Data e hora inválidas na linha: {line}")
                     continue
 
                 if punch_type == '0':
+                    print(f"Registrando Check In para {employee.name} às {attendance_datetime_utc}")
+
                     request.env['hr.attendance'].sudo().create({
                         'employee_id': employee.id,
-                        'check_in': attendance_datetime,
-                        'punching_time': attendance_datetime,
+                        'check_in': attendance_datetime_utc,
+                        'punching_time': attendance_datetime_utc,
                         'punch_type': punch_type,
                         'attendance_type': attendance_type,
                         'address_id': work_area.id,
                     })
 
                     if employee.x_ativo:
-                        notification = request.env['attendance.notification'].sudo().create({
+                        print(f"Criando notificação de Check In para {employee.name} às {attendance_datetime_utc}")
+
+                        request.env['attendance.notification'].sudo().create({
                             'employee_id': employee.id,
-                            'check_in': attendance_datetime,
+                            'check_in': attendance_datetime_utc,
                         })
-
-                        _logger.info("Check In registrado e notificação criada para empregado %s em %s",
-                                     employee.name, attendance_datetime)
-
 
                         threading.Thread(target=self.send_to_relevant_websockets,
                                          args=(employee.id, employee.x_ativo,
-                                               attendance_datetime.strftime('%Y-%m-%d %H:%M:%S'),
+                                               attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
                                                employee.name)).start()
                     else:
                         _logger.info(
-                            "Check In registrado, mas nenhuma notificação criada para o empregado %s porque x_ativo está False.",
-                            employee.name)
+                            f"Check In registrado, mas nenhuma notificação criada para {employee.name} porque x_ativo está False."
+                        )
 
-                elif punch_type == '1':  # Check Out
+                elif punch_type == '1':
+                    print(f"Registrando Check Out para {employee.name} às {attendance_datetime_utc}")
+
                     notification = request.env['attendance.notification'].sudo().search([
                         ('employee_id', '=', employee.id),
                         ('check_out', '=', False)
                     ], order='check_in desc', limit=1)
 
                     if notification:
-                        notification.sudo().write({'check_out': attendance_datetime})
-                        _logger.info("Atualizado Check Out na notificação para empregado %s em %s",
-                                     employee.name, attendance_datetime)
+
+                        notification.sudo().write({'check_out': attendance_datetime_utc})
+                        # print(f"Check Out atualizado na notificação de {employee.name} às {attendance_datetime_utc}")
                     else:
-                        _logger.warning("Nenhuma notificação de Check In encontrada para o empregado %s.",
-                                        employee.name)
+                        _logger.warning(f"Nenhuma notificação de Check In encontrada para {employee.name}.")
+
 
                     attendance = request.env['hr.attendance'].sudo().search([
                         ('employee_id', '=', employee.id),
@@ -98,14 +113,14 @@ class ZKTecoController(http.Controller):
                     ], order='check_in desc', limit=1)
 
                     if attendance:
-                        attendance.sudo().write({'check_out': attendance_datetime})
-                        _logger.info("Registrado Check Out para empregado %s em %s",
-                                     employee.name, attendance_datetime)
+
+                        attendance.sudo().write({'check_out': attendance_datetime_utc})
+                        _logger.info(f"Check Out registrado para {employee.name} às {attendance_datetime_utc}")
+                        # print(f"Check Out registrado para {employee.name} às {attendance_datetime_utc}")
                     else:
-                        _logger.warning("Nenhum registro de Check In encontrado para o empregado %s.",
-                                        employee.name)
+                        _logger.warning(f"Nenhum registro de Check In encontrado para {employee.name}.")
                 else:
-                    _logger.warning("Tipo de marcação não suportado: %s", punch_type)
+                    _logger.warning(f"Tipo de marcação não suportado: {punch_type}")
 
         return http.Response("OK", status=200)
 

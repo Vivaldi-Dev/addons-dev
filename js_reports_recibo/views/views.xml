@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="view_recibo_form" model="ir.ui.view">
+        <field name="name">recibo.recibo.form</field>
+        <field name="model">recibo.recibo</field>
+        <field name="arch" type="xml">
+            <form string="Recibo de Salario">
+                <sheet>
+
+                    <group>
+                        <group>
+                            <field name="descricao"/>
+                            <field name="mes"/>
+                            <field name="year"/>
+                        </group>
+
+                        <group>
+                            <field name="empresa_id"/>
+                            <field name="employee_id"/>
+                            <field name="departamento_id"/>
+
+                        </group>
+                    </group>
+
+
+                    <notebook>
+                        <page string="Payslip Details" attrs="{'invisible': True}">
+                            <field name="folhas_payslip_ids">
+                                <tree string="Payslips">
+                                    <field name="name"/>
+                                    <field name="number"/>
+                                    <field name="employee_id"/>
+                                    <field name="state"/>
+                                </tree>
+                            </field>
+                        </page>
+
+                        <page string="Detalhes por Categoria de Regra Salarial">
+                            <field name="linhas_agregadas">
+                                <tree string="Detalhes Agregados de Regra Salarial" editable="bottom" >
+                                    <field name="code"/>
+                                    <field name="employee_id" order="employee_id.name asc"/>
+                                    <field name="job_position"/>
+                                    <field name="birthday"/>
+                                    <field name="bank_name"/>
+                                    <field name="bank_account_number"/>
+                                    <field name="basic_amount" string="BASIC"/>
+                                    <field name="gross_amount" string="GROSS"/>
+                                    <field name="inc_amount" />
+                                    <field name="inss_amount" string="INSS"/>
+                                    <field name="irps_amout" string="IRPS"/>
+                                    <field name="worked_days"/>
+                                    <field name="total_leaves"/>
+                                    <field name="name_absent"/>
+                                    <field name="leave_type"/>
+                                    <field name="code_absent"/>
+                                    <field name="data_check_in"/>
+<!--                                    <field name="company_registry"/>-->
+                                    <field name="net_amount" string="NET"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_recibo_tree" model="ir.ui.view">
+        <field name="name">recibo.tree</field>
+        <field name="model">recibo.recibo</field>
+        <field name="arch" type="xml">
+            <tree string="Folha de Pagamento">
+                <field name="descricao"/>
+                <field name="mes"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_recibo" model="ir.actions.act_window">
+        <field name="name">Recibo de Pagamento</field>
+        <field name="res_model">recibo.recibo</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Sem dados adicionados ainda
+            </p>
+        </field>
+    </record>
+
+<!--    <menuitem name="Recibo de Pagamento" id="recibo_menu"-->
+<!--              web_icon="folhapagamento,static/description/icon.png"-->
+<!--              action="action_recibo" sequence="50"/>-->
+
+<!--    <menuitem name="Recibo Salarial" id="recibo_salarial"-->
+<!--              parent="folhapagamento.company_menu" action="action_recibo" sequence="0"/>-->
+
+    <menuitem id="menu_payroll"
+              name="Relatorios"
+              parent="hr_payroll_community.menu_hr_payroll_community_root"
+              sequence="101"
+              action="action_recibo"
+    />
+
+</odoo>

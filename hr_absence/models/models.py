@@ -46,7 +46,6 @@ class HrAbsence(models.Model):
                 'job_position': employee.job_id.name,
             })]
 
-
 class HrAbsenceInfo(models.Model):
     _name = 'hr.info'
     _description = 'Employee Absence Information'

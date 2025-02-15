@@ -13,9 +13,6 @@ class Employee(models.Model):
 class HolidaysType(models.Model):
     _inherit = "hr.leave.type"
 
-
-    code = fields.Char(string='Code')
-
     leave_type = fields.Selection([
         ('admissao', 'Admissão'),
         ('demissao', 'Demissão'),

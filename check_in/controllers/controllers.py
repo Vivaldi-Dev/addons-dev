@@ -7,6 +7,7 @@ from odoo.http import request
 import werkzeug
 import json
 from datetime import datetime, timedelta
+import pytz
 
 from odoo.addons.authmodel.controllers.decorators.token_required import token_required
 
@@ -1154,32 +1155,26 @@ class CheckIn(http.Controller):
                 ('check_in', '<=', end_date + timedelta(days=1))
             ])
 
-
             daily_report = []
             global_present_count = 0
             global_absent_count = 0
             current_date = start_date
 
             while current_date <= end_date:
-
                 day_start = datetime.combine(current_date, datetime.min.time())
                 day_end = datetime.combine(current_date, datetime.max.time())
                 daily_attendances = attendances.filtered(
                     lambda a: day_start <= a.check_in <= day_end
                 )
 
-
                 present_ids = daily_attendances.mapped('employee_id.id')
                 absent_ids = list(set(employees.ids) - set(present_ids))
-
 
                 present_count = len(present_ids)
                 absent_count = len(absent_ids)
 
-
                 global_present_count += present_count
                 global_absent_count += absent_count
-
 
                 daily_report.append({
                     'date': current_date.strftime('%Y-%m-%d'),
@@ -1194,9 +1189,7 @@ class CheckIn(http.Controller):
                     ]
                 })
 
-
                 current_date += timedelta(days=1)
-
 
             report_data = {
                 'company_id': company_id,
@@ -1259,8 +1252,7 @@ class CheckIn(http.Controller):
         )
 
     @http.route('/api/custom_response/', type='http', auth='public', methods=['GET'])
-    def custom_response(self,**kwargs):
-
+    def custom_response(self, **kwargs):
 
         employee_id = kwargs.get('id')
         employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
@@ -1282,11 +1274,12 @@ class CheckIn(http.Controller):
                 'id': notification.id,
                 'name': notification.employee_id.name,
                 'is_read': notification.is_read,
-                'check_in': notification.check_in.strftime('%Y-%m-%d') if notification.check_in else 'N/A' ,
-                'check_out':notification.check_out.strftime('%Y-%m-%d') if notification.check_out else 'N/A',
+                'check_in': notification.check_in.strftime('%Y-%m-%d') if notification.check_in else 'N/A',
+                'check_out': notification.check_out.strftime('%Y-%m-%d') if notification.check_out else 'N/A',
             })
 
-        return  werkzeug.wrappers.Response(json.dumps(notifications_info) ,headers={'Content-Type': 'application/json'} , status=200)
+        return werkzeug.wrappers.Response(json.dumps(notifications_info), headers={'Content-Type': 'application/json'},
+                                          status=200)
 
     @http.route('/api/week/', type='http', auth='public', methods=['GET'])
     def week(self, **kwargs):
@@ -1340,11 +1333,55 @@ class CheckIn(http.Controller):
                 'employee_id': holy.employee_id.name,
                 'holiday_status_id': holy.holiday_status_id.name,
                 'leave_type': holy.holiday_status_id.leave_type,
-                'code':holy.holiday_status_id.code,
+                'code': holy.holiday_status_id.code,
                 'date_from': holy.date_from.strftime('%Y-%m-%d'),
                 'date_to': holy.date_to.strftime('%Y-%m-%d'),
                 'state': holy.state,
             })
         return werkzeug.wrappers.Response(json.dumps(info_employees), headers={'Content-Type': 'application/json'})
 
+    @http.route('/api/set_timezone/', type='json', auth='public', methods=['POST'])
+    def set_timezone(self, **kwargs):
+        data = request.jsonrequest
 
+        if not data:
+            return {"status": "error", "message": "Preencha todos os campos."}
+
+        employee_id = data.get('employee_id')
+        check_in = data.get('check_in')
+        check_out = data.get('check_out')
+
+        if not employee_id or not check_in or not check_out:
+            return {"status": "error", "message": "Os campos employee_id, check_in e check_out são obrigatórios."}
+
+        try:
+
+            maputo_tz = pytz.timezone("Africa/Maputo")
+            utc_tz = pytz.utc
+
+
+            check_in_dt = maputo_tz.localize(datetime.strptime(check_in, "%Y-%m-%d %H:%M:%S"))
+            check_out_dt = maputo_tz.localize(datetime.strptime(check_out, "%Y-%m-%d %H:%M:%S"))
+
+            check_in_dt_utc = check_in_dt.astimezone(utc_tz).replace(tzinfo=None)
+            check_out_dt_utc = check_out_dt.astimezone(utc_tz).replace(tzinfo=None)
+
+        except ValueError:
+            return {"status": "error", "message": "Formato de data inválido. Use 'YYYY-MM-DD HH:MM:SS'"}
+
+        employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
+
+        if not employee:
+            return {"status": "error", "message": "employee_id não encontrado."}
+
+        attendance = request.env['hr.attendance'].sudo().create({
+            'employee_id': employee.id,
+            'check_in': check_in_dt_utc,
+            'check_out': check_out_dt_utc,
+        })
+
+        return {
+            "status": "success",
+            "message": "Registro de atendimento criado com sucesso.",
+            "attendance_id": attendance.id
+        }
