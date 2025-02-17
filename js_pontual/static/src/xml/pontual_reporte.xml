@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<template xml:space="preserve">
+    <t t-name="reportpontual">
+        <div class="container-fluid mt-5">
+            <style>
+                .card-hover {
+                    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+                }
+
+
+                .card-hover:hover {
+                    transform: scale(1.05);
+                    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+                }
+
+                .project_hours{
+                    height:450px !important;
+                }
+
+                .line_chart{
+                 height:450px !important;
+                }
+
+                html .o_web_client > .o_action_manager {
+
+                 overflow: auto !important;
+                    margin-bottom:20px
+                }
+
+
+                .sidebar {
+                    width: 250px;
+                    margin-top: 46px;
+                    height: 100vh;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    background-color: #343a40;
+                    position: fixed;
+                    padding-top: 20px;
+                    color: white;
+                    transition: width 0.3s ease-in-out;
+
+                }
+
+                .sidebar a {
+                    padding: 10px 15px;
+                    text-decoration: none;
+                    display: block;
+                    color: white;
+                    font-size: 18px;
+                }
+
+                .sidebar a:hover {
+                    background-color: #495057;
+                }
+
+                 .content {
+                    margin-left: 260px;
+                    padding: 20px;
+                }
+
+
+
+                @media (max-width: 480px) {
+
+                   .project_hours{
+                    height:250px !important;
+                    }
+
+                    .line_chart{
+                     height:auto !important;
+                    }
+
+                }
+
+            </style>
+
+            <div class="sidebar">
+                <h3 class="text-center">Menu</h3>
+                <a href="#"><i class="fa fa-home"></i>
+                    Dashboard</a>
+                <a href="#"><i class="fa fa-users"></i>
+                    Funcionários</a>
+                <a href="#"><i class="fa fa-chart-bar"></i>
+                    Relatórios</a>
+                <a href="#"><i class="fa fa-cog"></i>
+                    Configurações</a>
+            </div>
+
+            <div class="content">
+                 <div class="row">
+                <div class="col-12 col-md-6">
+                    <div class="card text-white shadow p-3 card-hover">
+                        <div class="card-body text-center">
+                            <h1><i class="fa fa-check-circle"></i>
+                                Presentes</h1>
+                            <h2 class="mt-2">Total:  <span id="total_presents"> 0</span>   </h2>
+                        </div>
+                    </div>
+                </div>
+
+                     <div class="col-12 col-md-6 mt-3 mt-md-0">
+                    <div class="card text-white shadow p-3 card-hover">
+                        <div class="card-body text-center">
+                            <h1><i class="fa fa-times-circle"></i>
+                                Ausentes</h1>
+                            <h2 class="mt-2">Total: <span id="total_absents"> 0 </span> </h2>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+                <div class="row mt-5">
+                 <div class="col-12 col-md-6   ">
+                     <div class="card p-3 align-items-center text-center rounded">
+                           <canvas class="project_hours" width="400" height="200"></canvas>
+                     </div>
+
+                </div>
+
+                    <div class="col-12 col-md-6 mt-3 mt-4 mt-md-0  text-center rounded-5">
+                    <div class="card p-3 ">
+                           <canvas class="line_chart" width="400" height="200"></canvas>
+                    </div>
+
+                </div>
+            </div>
+            </div>
+
+
+        </div>
+    </t>
+</template>

@@ -34,14 +34,14 @@
     ],
 
     'qweb': [
-        '/reporte/static/src/xml/template.xml',
+        '/reporte/static/src/xml/pontual_reporte.xml',
     ],
     'assets': {
         'web.assets_backend': [
             '/reporte/static/src/js/report.js',
         ],
         'web.assets_qweb': [
-            '/reporte/static/src/xml/template.xml',
+            '/reporte/static/src/xml/pontual_reporte.xml',
         ],
     },
 }

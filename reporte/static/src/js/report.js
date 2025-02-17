@@ -125,8 +125,7 @@ odoo.define('reporte.reportes', function (require) {
                 });
             }
             ,
-        })
-    ;
+        });
 
     core.action_registry.add('reporte', reportetable);
     return reportetable;

@@ -1,60 +1,13 @@
 <odoo>
-  <data>
-    <!-- explicit list view definition -->
-<!--
-    <record model="ir.ui.view" id="js_pontual.list">
-      <field name="name">js_pontual list</field>
-      <field name="model">js_pontual.js_pontual</field>
-      <field name="arch" type="xml">
-        <tree>
-          <field name="name"/>
-          <field name="value"/>
-          <field name="value2"/>
-        </tree>
-      </field>
+    <record id="action_pontual" model="ir.actions.client">
+        <field name="name"> js_pontual</field>
+        <field name="tag">pontual</field>
+        <field name="target">main</field>
     </record>
--->
 
-    <!-- actions opening views on models -->
-<!--
-    <record model="ir.actions.act_window" id="js_pontual.action_window">
-      <field name="name">js_pontual window</field>
-      <field name="res_model">js_pontual.js_pontual</field>
-      <field name="view_mode">tree,form</field>
-    </record>
--->
 
-    <!-- server action to the one above -->
-<!--
-    <record model="ir.actions.server" id="js_pontual.action_server">
-      <field name="name">js_pontual server</field>
-      <field name="model_id" ref="model_js_pontual_js_pontual"/>
-      <field name="state">code</field>
-      <field name="code">
-        action = {
-          "type": "ir.actions.act_window",
-          "view_mode": "tree,form",
-          "res_model": model._name,
-        }
-      </field>
-    </record>
--->
+    <menuitem name="Pontual" id="pontual"
+                  web_icon="js_pontual,static/description/icon.png"
+                  action="action_pontual" sequence="90"/>
 
-    <!-- Top menu item -->
-<!--
-    <menuitem name="js_pontual" id="js_pontual.menu_root"/>
--->
-    <!-- menu categories -->
-<!--
-    <menuitem name="Menu 1" id="js_pontual.menu_1" parent="js_pontual.menu_root"/>
-    <menuitem name="Menu 2" id="js_pontual.menu_2" parent="js_pontual.menu_root"/>
--->
-    <!-- actions -->
-<!--
-    <menuitem name="List" id="js_pontual.menu_1_list" parent="js_pontual.menu_1"
-              action="js_pontual.action_window"/>
-    <menuitem name="Server to list" id="js_pontual" parent="js_pontual.menu_2"
-              action="js_pontual.action_server"/>
--->
-  </data>
 </odoo>

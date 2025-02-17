@@ -1,0 +1,6 @@
+<t t-name="relatorios_template">
+    <div class="content">
+        <h2>Relatórios</h2>
+        <p>Conteúdo da seção de Relatórios.</p>
+    </div>
+</t>

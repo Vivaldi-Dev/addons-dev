@@ -123,7 +123,7 @@
             'base_accounting_kit/static/lib/bootstrap-toggle-master/js/bootstrap-toggle.min.js',
         ],
         'web.assets_qweb': [
-            'base_accounting_kit/static/src/xml/template.xml',
+            'base_accounting_kit/static/src/xml/pontual_reporte.xml',
             'base_accounting_kit/static/src/xml/payment_matching.xml',
         ],
     },

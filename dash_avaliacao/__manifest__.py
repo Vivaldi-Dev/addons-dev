@@ -32,7 +32,7 @@
 
     'assets': {
         'web.assets_qweb': [
-            'dash_avaliacao/static/src/xml/template.xml',
+            'dash_avaliacao/static/src/xml/pontual_reporte.xml',
             'dash_avaliacao/static/src/xml/dash_template.xml',
 
 

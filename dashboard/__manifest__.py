@@ -31,7 +31,7 @@
 
     'assets': {
         'web.assets_qweb': [
-            'dashboard/static/src/xml/template.xml',
+            'dashboard/static/src/xml/pontual_reporte.xml',
         ],
         'web.assets_backend': [
             'dashboard/static/src/css/lib/dashboard.css',
