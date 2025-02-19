@@ -114,7 +114,7 @@ odoo.define('pontual.js_pontual', function (require) {
                         $('#total_presents').empty().append(result['total_presents']);
                         $('#total_absents').empty().append(result['total_absents']);
 
-                        // **Recria os gráficos depois de atualizar os elementos**
+
                         self.render_doughnut_chart();
                         self.render_bar_line_chart();
 
