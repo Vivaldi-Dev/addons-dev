@@ -1385,3 +1385,41 @@ class CheckIn(http.Controller):
             "message": "Registro de atendimento criado com sucesso.",
             "attendance_id": attendance.id
         }
+
+    @http.route('/api/_look_for_fouls/', type='json', auth='public', methods=['POST'])
+    def look_for_fouls(self, **kwargs):
+        data = request.jsonrequest
+        date_from = data.get('date_from')
+        date_to = data.get('date_to')
+        company_id = data.get('company_id')
+
+        if not date_from or not date_to or not company_id:
+            return {'error': "'date_from', 'date_to' e 'company_id' são obrigatórios"}
+
+        try:
+            start_date = datetime.strptime(date_from, "%Y-%m-%d").date()
+            end_date = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except ValueError:
+            return {'error': "Formato de data inválido. Use 'YYYY-MM-DD'"}
+
+        if start_date > end_date:
+            return {'error': "'date_from' não pode ser maior que 'date_to'"}
+
+
+        leaves = request.env['hr.leave'].sudo().search([
+            ('date_from', '<=', end_date),
+            ('date_to', '>=', start_date),
+            ('state', 'in', ['confirm', 'refuse']),
+            ('employee_id.company_id', '=', int(company_id))
+        ])
+
+
+        employee_ids = leaves.mapped('employee_id.id')
+        absence_count = len(set(employee_ids))
+
+        return {
+            'company_id': company_id,
+            'date_from': date_from,
+            'date_to': date_to,
+            'absent_employees_count': absence_count
+        }

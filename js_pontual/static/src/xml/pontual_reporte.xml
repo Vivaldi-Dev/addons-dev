@@ -4,17 +4,17 @@
     <t t-name="reportpontual">
         <div class="container-fluid mt-5">
             <style>
-<!--                .card-hover {-->
-                <!--                    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;-->
-                <!--                }-->
+                .card-hover {
+                                    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+                                }
 
-                <!--                .container-fluid{-->
-                <!--                  max-width: 1640px !important;-->
-                <!--                }-->
-                <!--                .card-hover:hover {-->
-                <!--                    transform: scale(1.05);-->
-                <!--                    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);-->
-                <!--                }-->
+                                .container-fluid{
+                                  max-width: 1640px !important;
+                                }
+                                .card-hover:hover {
+                                    transform: scale(1.05);
+                                    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+                                }
 
                 .project_hours{
                 height:450px !important;
@@ -46,28 +46,28 @@
             </style>
 
 
-            <!--            <div class="row">-->
-            <!--                <div class="col-12 col-md-6">-->
-            <!--                    <div class="card text-white shadow p-3 card-hover">-->
-            <!--                        <div class="card-body text-center">-->
-            <!--                            <h1><i class="fa fa-check-circle"></i>-->
-            <!--                                Presentes</h1>-->
-            <!--                            <h2 class="mt-2">Total:  <span id="total_presents"> 0</span>   </h2>-->
-            <!--                        </div>-->
-            <!--                    </div>-->
-            <!--                </div>-->
+                        <div class="row">
+                            <div class="col-12 col-md-6">
+                                <div class="card text-white shadow p-3 card-hover">
+                                    <div class="card-body text-center">
+                                        <h1><i class="fa fa-check-circle"></i>
+                                            Presentes</h1>
+                                        <h2 class="mt-2">Total:  <span id="total_presents"> 0</span>   </h2>
+                                    </div>
+                                </div>
+                            </div>
 
-            <!--                <div class="col-12 col-md-6 mt-3 mt-md-0">-->
-            <!--                    <div class="card text-white shadow p-3 card-hover">-->
-            <!--                        <div class="card-body text-center">-->
-            <!--                            <h1><i class="fa fa-times-circle"></i>-->
-            <!--                                Ausentes</h1>-->
-            <!--                            <h2 class="mt-2">Total: <span id="total_absents"> 0 </span> </h2>-->
-            <!--                        </div>-->
-            <!--                    </div>-->
-            <!--                </div>-->
+                            <div class="col-12 col-md-6 mt-3 mt-md-0">
+                                <div class="card text-white shadow p-3 card-hover">
+                                    <div class="card-body text-center">
+                                        <h1><i class="fa fa-times-circle"></i>
+                                            Ausentes</h1>
+                                        <h2 class="mt-2">Total: <span id="total_absents"> 0 </span> </h2>
+                                    </div>
+                                </div>
+                            </div>
 
-            <!--            </div>-->
+                        </div>
 
 
             <div class="row">
