@@ -1,0 +1,13 @@
+<odoo>
+    <record id="action_dashpontual" model="ir.actions.client">
+        <field name="name">dashboard_pontual</field>
+        <field name="tag">dashPontual</field>
+        <field name="target">main</field>
+    </record>
+
+
+    <menuitem name="Dash Pontual" id="pontual"
+                  web_icon="dashboard_pontual,static/description/icon.png"
+                  action="action_dashpontual" sequence="70"/>
+
+</odoo>

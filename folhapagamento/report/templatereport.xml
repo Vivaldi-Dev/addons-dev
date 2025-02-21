@@ -15,11 +15,18 @@
                     <tr>
 
                         <td style="width: 40%; border: 1px solid black; padding: 10px; font-size: 12px;">
-                            <p class="mb-0">Av. Base N`Tchinga nº 319</p>
-                            <p style=" margin-bottom: 0px ">Bairro da Coop, Maputo – Mozambique</p>
+                            <p class="mb-0">
+                                <span t-esc="doc.company_id.company_details"/>
+                            </p>
                             <p>
-                                Data :
-                                <t t-esc="dict(doc._fields['month'].selection).get(doc.month)"/>
+                                Data:
+                                <t t-set="meses" t-value="{
+                                '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março',
+                                '04': 'Abril', '05': 'Maio', '06': 'Junho',
+                                '07': 'Julho', '08': 'Agosto', '09': 'Setembro',
+                                '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+                            }"/>
+                                <t t-esc="meses.get(doc.month)"/>
                                 de
                                 <t t-esc="doc.year"/>
                             </p>

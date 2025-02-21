@@ -4,12 +4,11 @@ from odoo import models, fields, api
 from datetime import timedelta, datetime, date
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT
 import pytz
-from pytz import timezone, UTC
 
 
-class PontualJS(models.Model):
-    _name = 'pontual_js.pontual_js'
-    _description = 'pontual_js.pontual_js'
+class dashboard_pontual(models.Model):
+    _name = 'dashboard_pontual.dashboard_pontual'
+    _description = 'dashboard_pontual.dashboard_pontual'
 
     company_id = fields.Many2one(
         'res.company',
@@ -97,7 +96,6 @@ class PontualJS(models.Model):
                     presentes_dia += 1
                 else:
                     ausentes_dia += 1
-
 
             attendance_by_day.append({
                 'date': current_date.strftime('%Y-%m-%d'),

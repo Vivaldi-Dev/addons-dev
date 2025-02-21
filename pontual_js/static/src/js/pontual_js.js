@@ -4,20 +4,44 @@ odoo.define('dashboardpontual.pontual_js', function (require) {
     var AbstractAction = require('web.AbstractAction');
     var core = require('web.core');
     var rpc = require('web.rpc');
-    var session = require('web.session'); // Certifique-se de importar `session`
+    var session = require('web.session');
 
     const DashboardTemplate = AbstractAction.extend({
         template: 'pontualdashboard',
 
         start: function () {
-            console.debug("[DEBUG] Iniciando o método start...");
             this._super.apply(this, arguments);
+
+
+            this.$el.on('click', '#toggleCalendarButton', function () {
+                $('#datePickerPanel').toggleClass('show');
+                console.log('Painel de datas alternado');
+            });
+
+            this.$el.on('click', '#applyButton', function () {
+                const startDate = $('#startDate').val();
+                const endDate = $('#endDate').val();
+
+                console.log(startDate);
+                console.log(endDate)
+
+
+                if (!startDate || !endDate) {
+                    console.error("Por favor, selecione ambas as datas.");
+                    return;
+                }
+
+                 // $('#datePickerPanel').toggleClass('hide');
+
+                // self.renderElement(startDate, endDate);
+            });
+
+            const self = this;
 
             setTimeout(() => {
                 this.render_doughnut_chart();
                 this.render_line_chart();
                 this.render_bar_chart();
-                // this.renderElement();
             }, 100);
         },
 
@@ -83,19 +107,33 @@ odoo.define('dashboardpontual.pontual_js', function (require) {
                 self.myLineChartInstance.destroy();
             }
 
-            const labels = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+            const attendance_by_day = self.attendance_by_day || [];
+            const labels = attendance_by_day.map(day => day.day_of_week);
+            const ausentes_data = attendance_by_day.map(day => day.ausentes);
+            const presentes_data = attendance_by_day.map(day => day.presentes);
 
-            const faltas_por_dia = self.faltas_por_dia || [0, 0, 0, 0, 0, 0, 0];
+            // console.log("Labels:", labels);
+            // console.log("Dados de ausentes:", ausentes_data);
+            // console.log("Dados de presentes:", presentes_data);
 
             const data = {
                 labels: labels,
-                datasets: [{
-                    label: 'Faltas na Semana',
-                    data: faltas_por_dia,
-                    fill: false,
-                    borderColor: 'rgb(75, 192, 192)',
-                    tension: 0.1
-                }]
+                datasets: [
+                    {
+                        label: 'Faltas na Semana',
+                        data: ausentes_data,
+                        fill: false,
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Presentes na Semana',
+                        data: presentes_data,
+                        fill: false,
+                        borderColor: '#71639e',
+                        tension: 0.1
+                    }
+                ]
             };
 
             self.myLineChartInstance = new Chart(ctx, {
@@ -132,32 +170,34 @@ odoo.define('dashboardpontual.pontual_js', function (require) {
                 self.myBarChartInstance.destroy();
             }
 
-            const labels = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho'];
+            if (!self.attendance_by_day || self.attendance_by_day.length === 0) {
+                console.warn("Nenhum dado de presença disponível para exibição no gráfico de barras.");
+                return;
+            }
+
+            const labels = self.attendance_by_day.map(item => item.date);
+
+            const presentesData = self.attendance_by_day.map(item => item.presentes);
+            const ausentesData = self.attendance_by_day.map(item => item.ausentes);
+
             const data = {
                 labels: labels,
-                datasets: [{
-                    label: 'My First Dataset',
-                    data: [65, 59, 80, 81, 56, 55, 40],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.2)',
-                        'rgba(255, 159, 64, 0.2)',
-                        'rgba(255, 205, 86, 0.2)',
-                        'rgba(75, 192, 192, 0.2)',
-                        'rgba(54, 162, 235, 0.2)',
-                        'rgba(153, 102, 255, 0.2)',
-                        'rgba(201, 203, 207, 0.2)'
-                    ],
-                    borderColor: [
-                        'rgb(255, 99, 132)',
-                        'rgb(255, 159, 64)',
-                        'rgb(255, 205, 86)',
-                        'rgb(75, 192, 192)',
-                        'rgb(54, 162, 235)',
-                        'rgb(153, 102, 255)',
-                        'rgb(201, 203, 207)'
-                    ],
-                    borderWidth: 1
-                }]
+                datasets: [
+                    {
+                        label: 'Presentes',
+                        data: presentesData,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Ausentes',
+                        data: ausentesData,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }
+                ]
             };
 
             self.myBarChartInstance = new Chart(ctx, {
@@ -185,7 +225,6 @@ odoo.define('dashboardpontual.pontual_js', function (require) {
                     return;
                 }
 
-                // Pega a empresa ativa da sessão
                 const company_id = session.user_context.allowed_company_ids[0];
                 if (!company_id) {
                     console.error("Nenhuma empresa ativa encontrada na sessão.");
@@ -193,38 +232,70 @@ odoo.define('dashboardpontual.pontual_js', function (require) {
                 }
 
                 let today = new Date();
-                let startOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 1)); // Segunda-feira
-                let endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 7));   // Domingo
+                let startOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 1));
+                let endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 7));
 
                 rpc.query({
                     model: "pontual_js.pontual_js",
                     method: "get_pontual_js_data",
                     args: [startOfWeek.toISOString().slice(0, 10), endOfWeek.toISOString().slice(0, 10), company_id]
                 }).then(function (result) {
-                    let $total_presents = $('#total_presents');
-                    let $total_absents = $('#total_absents');
-                    let $total_atrasos = $('#total_atrasos');
+                    let totalFuncionarios = result['total_employees'];
+                    let totalPresents = result['total_presents'];
+                    let totalAbsents = result['total_absents'];
+                    let totalAtrasos = result['total_atrasos'];
 
-                    if ($total_presents.length && $total_absents.length && $total_atrasos.length) {
-                        $total_presents.empty().append(result['total_presents']);
-                        $total_absents.empty().append(result['total_absents']);
-                        $total_atrasos.empty().append(result['total_atrasos']);
+                    let presentes = result['total_presents'];
+                    let ausentes = result['total_absents'];
+                    let funcionario = result['total_employees'];
+                    let atrsos = result['total_atrasos']
 
-                        self.faltas_por_dia = result['faltas_por_dia'];
+                    let percentPresents = (presentes / funcionario) * 100;
+                    let percentAbsents = (ausentes / funcionario) * 100;
+                    let percentAtrasos = (atrsos / funcionario) * 100;
 
-                        self.render_doughnut_chart();
-                        self.render_line_chart();
-                        self.render_bar_chart();
-                    } else {
-                        console.warn("Os elementos do DOM ainda não estão disponíveis. Adiando renderização...");
-                        setTimeout(() => self.renderElement(), 100);
-                    }
 
+                    let pPresents = ((presentes / funcionario) * 100).toFixed(2);
+                    let pAbsents = ((ausentes / funcionario) * 100).toFixed(2);
+                    let ptAtrasos = ((atrsos / funcionario) * 100).toFixed(2);
+
+                    $('#total_presents').text(totalPresents);
+                    $('#total_absents').text(totalAbsents);
+                    $('#total_atrasos').text(totalAtrasos);
+
+                    $('#total_presents').text(totalPresents);
+                    $('#total_absents').text(totalAbsents);
+                    $('#total_atrasos').text(totalAtrasos);
+
+                    $('.custom-prents').css('width', pPresents + '%').attr('aria-valuenow', pPresents);
+                    $('.bg-danger').css('width', pAbsents + '%').attr('aria-valuenow', pAbsents);
+                    $('.custom-atrsos').css('width', ptAtrasos + '%').attr('aria-valuenow', ptAtrasos);
+
+
+                    $('.text-success-custom').html(`<i class="fas fa-user-check"></i> ${pPresents}%`);
+                    $('.text-danger-custom').html(`<i class="fas fa-user-times"></i> ${pAbsents}%`);
+                    $('.text-warning-custom').html(`<i class="fas fa-clock"></i> ${ptAtrasos}%`);
+
+                    $('.text-success-custom').closest('div').find('small').text(`Presentes (${totalPresents} funcionários)`);
+                    $('.text-danger-custom').closest('div').find('small').text(`Ausentes (${totalAbsents} funcionários)`);
+                    $('.text-warning-custom').closest('div').find('small').text(`Atrasos (${totalAtrasos} funcionários)`);
+
+                    $('.custom-prents').closest('.progress').prev().find('.float-right').text(percentPresents.toFixed(2) + '%');
+                    $('.bg-danger').closest('.progress').prev().find('.float-right').text(percentAbsents.toFixed(2) + '%');
+                    $('.custom-atrsos').closest('.progress').prev().find('.float-right').text(percentAtrasos.toFixed(2) + '%');
+
+
+                    self.attendance_by_day = result['attendance_by_day'];
+                    self.render_doughnut_chart();
+                    self.render_line_chart();
+                    self.render_bar_chart();
                 }).catch(function (error) {
                     console.error("Erro ao buscar os dados:", error);
                 });
-            }, 500);  // Pequeno delay para garantir que a DOM está pronta
-        },
+
+
+            }, 500);
+        }
     });
 
     core.action_registry.add('dashboardpontual', DashboardTemplate);
