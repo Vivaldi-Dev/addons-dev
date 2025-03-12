@@ -1,0 +1,15 @@
+<odoo>
+    <data>
+        <record id="cron_update_absent_employees" model="ir.cron">
+            <field name="name">Atualizar Funcionários Sem Check-in</field>
+            <field name="model_id" ref="model_absent_employees"/>
+            <field name="state">code</field>
+            <field name="code">
+                model.update_absent_employees()
+            </field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

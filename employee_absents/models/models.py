@@ -126,7 +126,7 @@ class HrPayslip(models.Model):
         return atrasos
 
     def _look_for_overtime(self, date_from, date_to):
-        """Busca horas extras dos funcionários dentro do período informado, convertendo timezone corretamente."""
+
 
         user_tz = timezone(self.env.user.tz) if self.env.user.tz else UTC
 
@@ -149,16 +149,9 @@ class HrPayslip(models.Model):
 
             expected_time = work_day.get('hour_to')
 
-            # print("\n--- DEBUG ---")
-            # print(f"Funcionário: {employee.name}")
-            # print(f"Data do Check-out: {check_out_local.strftime('%Y-%m-%d')}")
-            # print(f"Hora do Check-out no Odoo: {check_out_time.strftime('%H:%M')} (convertido do UTC)")
-            # print(f"Dia da Semana: {day_of_week}")
-            # print(
-            #     f"Hora esperada de saída no resource_calendar: {expected_time.strftime('%H:%M') if expected_time else 'N/A'}")
 
             if expected_time and check_out_time > expected_time:
-                # Horário limite para H_E_150 (20:00)
+
                 limite_h_e_150 = datetime.strptime("20:00", "%H:%M").time()
 
                 if check_out_time > limite_h_e_150:
@@ -198,7 +191,7 @@ class HrPayslip(models.Model):
                         'tipo': 'H_E_200',
                     })
             else:
-                print("⚠️ O funcionário saiu antes do horário esperado. Nenhuma hora extra.\n")
+                print("O funcionário saiu antes do horário esperado. Nenhuma hora extra.\n")
 
         return horas_extras
 
@@ -281,8 +274,8 @@ class HolidaysRequest(models.Model):
             first_shift = min(work_schedule, key=lambda x: x['hour_from'])
             last_shift = max(work_schedule, key=lambda x: x['hour_to'])
 
-            hour_from_time = first_shift['hour_from'].time()
-            hour_to_time = last_shift['hour_to'].time()
+            hour_from_time = first_shift['hour_from']
+            hour_to_time = last_shift['hour_to']
 
             date_from_maputo = datetime.combine(yesterday, hour_from_time)
             date_to_maputo = datetime.combine(yesterday, hour_to_time)

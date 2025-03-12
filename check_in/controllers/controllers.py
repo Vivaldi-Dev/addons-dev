@@ -84,10 +84,11 @@ class CheckIn(http.Controller):
 
             start_date = data.get('start_date')
             end_date = data.get('end_date')
+            address_id = data.get('address_id')
             page = int(data.get('page', 1))
             limit = int(data.get('limit', 10))
 
-            today = datetime.today()
+            today = datetime.utcnow()
 
             if start_date:
                 try:
@@ -110,28 +111,48 @@ class CheckIn(http.Controller):
             if start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
+            # Filtro para employees com base no company_id
+            domain = [('company_id', '=', int(company_id))]
+            employees = request.env['hr.employee'].sudo().search(domain)
             total_employees = len(employees)
 
             records = []
             presentes = 0
 
+            # Define o fuso horário correto
+            tz_maputo = pytz.timezone('Africa/Maputo')
+            tz_utc = pytz.utc
+
             for employee in employees:
-                attendances = request.env['hr.attendance'].sudo().search([
+                # Filtro para attendances com base no employee_id e datas
+                attendance_domain = [
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', start_date),
                     ('check_in', '<=', end_date)
-                ], order='check_in desc')
+                ]
+
+                # Adiciona o filtro opcional para address_id, se fornecido
+                if address_id:
+                    attendance_domain.append(('address_id', '=', int(address_id)))
+
+                attendances = request.env['hr.attendance'].sudo().search(attendance_domain, order='check_in desc')
 
                 for attendance in attendances:
-                    check_in = attendance.check_in.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_in else ''
-                    check_out = attendance.check_out.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_out else ''
+                    check_in = attendance.check_in
+                    check_out = attendance.check_out
+
+                    check_in = check_in.replace(tzinfo=tz_utc).astimezone(tz_maputo).strftime(
+                        '%Y-%m-%d %H:%M:%S') if check_in else ''
+                    check_out = check_out.replace(tzinfo=tz_utc).astimezone(tz_maputo).strftime(
+                        '%Y-%m-%d %H:%M:%S') if check_out else ''
+
                     records.append({
                         'id': employee.id,
                         'job_position': employee.job_title,
                         'name': employee.name,
                         'check_in': check_in,
                         'check_out': check_out,
+                        'address_id': attendance.address_id.name,
                         'status': 'presente'
                     })
                     presentes += 1
@@ -177,14 +198,18 @@ class CheckIn(http.Controller):
             start_date = data.get('start_date')
             end_date = data.get('end_date')
 
+            tz_maputo = pytz.timezone('Africa/Maputo')
+            tz_utc = pytz.utc
+
             if start_date:
                 try:
-                    start_date = datetime.strptime(start_date, '%Y-%m-%d')
+                    start_date = tz_maputo.localize(datetime.strptime(start_date, '%Y-%m-%d')).astimezone(tz_utc)
                 except ValueError:
                     return {'error': 'O campo "start_date" deve estar no formato "YYYY-MM-DD".'}
             if end_date:
                 try:
-                    end_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1, seconds=-1)
+                    end_date = tz_maputo.localize(datetime.strptime(end_date, '%Y-%m-%d')).astimezone(
+                        tz_utc) + timedelta(days=1, seconds=-1)
                 except ValueError:
                     return {'error': 'O campo "end_date" deve estar no formato "YYYY-MM-DD".'}
 
@@ -231,6 +256,88 @@ class CheckIn(http.Controller):
 
         except Exception as e:
             return {'error': str(e)}
+
+    @http.route('/api/monitoring/absentens', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    def absentens(self, **kw):
+        data = request.jsonrequest
+
+        if not data:
+            return {'error': 'A requisição precisa conter dados.'}
+
+        company_id = data.get('company_id')
+        if not company_id:
+            return werkzeug.wrappers.Response(
+                json.dumps({'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}),
+                headers=[('Content-Type', 'application/json')],
+                status=400
+            )
+
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+
+
+        page = int(data.get('page', 1))
+        limit = int(data.get('limit', 5))
+        offset = (page - 1) * limit
+
+        tz_maputo = pytz.timezone('Africa/Maputo')
+        tz_utc = pytz.utc
+
+        try:
+            if start_date:
+                start_date = tz_maputo.localize(datetime.strptime(start_date, '%Y-%m-%d')).astimezone(tz_utc)
+            if end_date:
+                end_date = tz_maputo.localize(datetime.strptime(end_date, '%Y-%m-%d')).astimezone(
+                    tz_utc) + timedelta(days=1, seconds=-1)
+        except ValueError:
+            return {'error': 'As datas devem estar no formato "YYYY-MM-DD".'}
+
+        if start_date and end_date and start_date > end_date:
+            return {'error': 'A data inicial não pode ser posterior à data final.'}
+
+        Leave = request.env['hr.leave'].sudo()
+        domain = [
+            ('state', 'in', ['confirm', 'refuse', 'validate']),
+            ('employee_id.company_id', '=', int(company_id))  # Filtra diretamente pelo company_id
+        ]
+
+        if start_date:
+            domain.append(('date_from', '>=', start_date))
+        if end_date:
+            domain.append(('date_to', '<=', end_date))
+
+        state_mapping = {
+            'draft': 'To Submit',
+            'confirm': 'To Approve',
+            'refuse': 'Refused',
+            'validate1': 'Second Approval',
+            'validate': 'Approved'
+        }
+
+        # Aplica a paginação
+        leaves = Leave.search(domain, offset=offset, limit=limit)
+        total_leaves = Leave.search_count(domain)  # Conta o total de registros sem paginação
+
+        result = []
+        for leave in leaves:
+            result.append({
+                'employee_id': leave.employee_id.id,
+                'employee_name': leave.employee_id.name,
+                'date_from': leave.date_from.strftime('%Y-%m-%d %H:%M:%S'),
+                'date_to': leave.date_to.strftime('%Y-%m-%d %H:%M:%S'),
+                'leave_type': leave.holiday_status_id.name,
+                'state': state_mapping.get(leave.state, leave.state)
+            })
+
+        return {
+            'absent_employees': result,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total_records': total_leaves,
+                'total_pages': (total_leaves + limit - 1) // limit  # Calcula o número total de páginas
+            }
+        }
 
     @http.route('/api/monitoring/percentages', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
     def percentages(self, **kw):
@@ -612,16 +719,31 @@ class CheckIn(http.Controller):
         return delays_info
 
     @token_required
-    @http.route('/company/company', auth='none', cors='*', csrf=False, methods=['GET'])
+    @http.route('/company/company', type="json", auth='none', cors='*', csrf=False, methods=['POST'])
     def company(self):
-        records = request.env['res.company'].sudo().search([])
-        info = []
-        for row in records:
-            info.append({
-                'id': row.id,
-                'name': row.name,
-            })
-        return werkzeug.wrappers.Response(json.dumps(info), headers=[('Content-Type', 'application/json')], status=200)
+        try:
+            data = request.jsonrequest
+
+            user_id = data.get('user_id')
+            if not user_id:
+                return {"error": "O campo 'user_id' é obrigatório no corpo da requisição."}
+
+            user = request.env['res.users'].sudo().search([('id', '=', int(user_id))], limit=1)
+            if not user:
+                return {"error": "Usuário não encontrado."}
+
+            allowed_company_ids = user.company_ids.ids
+
+            companies = request.env['res.company'].sudo().search([('id', 'in', allowed_company_ids)])
+            info = [{
+                'id': company.id,
+                'name': company.name,
+            } for company in companies]
+
+            return info
+
+        except Exception as e:
+            return {"error": f"Erro inesperado: {str(e)}"}
 
     @http.route('/api/overtime', auth='none', type="json", cors='*', csrf=False, methods=['GET'])
     def overtime(self):
@@ -934,15 +1056,22 @@ class CheckIn(http.Controller):
             next_month = month + 1 if month < 12 else 1
             next_month_year = current_year if month < 12 else current_year + 1
 
+            maputo_tz = pytz.timezone('Africa/Maputo')
+
+            start_date = maputo_tz.localize(datetime(current_year, month, 1))
+            end_date = maputo_tz.localize(datetime(next_month_year, next_month, 1))
+
             attendance_records = request.env['hr.attendance'].sudo().search([
                 ('employee_id', '=', employee_id),
-                ('check_in', '>=', datetime(current_year, month, 1)),
-                ('check_in', '<', datetime(next_month_year, next_month, 1))
+                ('check_in', '>=', start_date.astimezone(pytz.utc)),
+                ('check_in', '<', end_date.astimezone(pytz.utc))
             ])
 
             attendance_info = [{
-                'check_in': record.check_in.strftime('%Y-%m-%d %H:%M:%S') if record.check_in else None,
-                'check_out': record.check_out.strftime('%Y-%m-%d %H:%M:%S') if record.check_out else None
+                'check_in': record.check_in.astimezone(maputo_tz).strftime(
+                    '%Y-%m-%d %H:%M:%S') if record.check_in else None,
+                'check_out': record.check_out.astimezone(maputo_tz).strftime(
+                    '%Y-%m-%d %H:%M:%S') if record.check_out else None
             } for record in attendance_records]
 
             employee_info = {
@@ -1009,63 +1138,6 @@ class CheckIn(http.Controller):
 
         return response
 
-    @http.route('/api/monitoring/employee/checkin_summary', type='json', auth='none', cors='*', csrf=False,
-                methods=['POST'])
-    def employee_checkin_summary(self, **kw):
-
-        data = request.jsonrequest
-        employee_id = data.get('employee_id')
-        month = data.get('month')
-
-        if not employee_id or not month:
-            return {"error": "Os campos 'employee_id', 'month' e 'year' são obrigatórios."}
-
-        try:
-            month = int(month)
-
-        except ValueError:
-            return {"error": "Os campos 'month' e 'year' devem ser inteiros válidos."}
-
-        if not 1 <= month <= 12:
-            return {"error": "O campo 'month' deve estar entre 1 e 12."}
-
-        try:
-            employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
-            if not employee:
-                return {"error": "Employee not found"}
-
-            year = datetime.now().year
-
-            num_days = monthrange(year, month)[1]
-            all_days = [
-                datetime(year, month, day).date()
-                for day in range(1, num_days + 1)
-                if datetime(year, month, day).weekday() != 6
-            ]
-
-            attendance_records = request.env['hr.attendance'].sudo().search([
-                ('employee_id', '=', employee_id),
-                ('check_in', '>=', datetime(year, month, 1)),
-                ('check_in', '<', datetime(year, month, num_days) + timedelta(days=1))
-            ])
-            check_in_days = {record.check_in.date() for record in attendance_records if record.check_in}
-
-            days_with_checkin = [day.isoformat() for day in all_days if day in check_in_days]
-            days_without_checkin = [day.isoformat() for day in all_days if day not in check_in_days]
-
-            summary = {
-                'employee_id': employee.id,
-                'employee_name': employee.name,
-                'total_business_days': len(all_days),
-                'days_with_checkin': len(days_with_checkin),
-                'days_without_checkin': len(days_without_checkin),
-            }
-
-            return summary
-
-        except Exception as e:
-            return {"error": f"An error occurred: {str(e)}"}
-
     @http.route('/api/data/employee/', type='http', auth='none', cors='*', csrf=False, methods=['POST'])
     def employee_data(self, **kw):
         data = request.jsonrequest
@@ -1119,97 +1191,6 @@ class CheckIn(http.Controller):
 
         return werkzeug.wrappers.Response(json.dumps(info_records), headers=[('Content-Type', 'application/json')])
 
-    @http.route('/api/report/overtime', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
-    def overtime(self, **kw):
-        try:
-            data = request.jsonrequest
-            company_id = data.get('company_id')
-            start_date_str = data.get('start_date')
-            end_date_str = data.get('end_date')
-
-            if not company_id or not start_date_str or not end_date_str:
-                return {'error': 'Company ID, start_date, and end_date are required'}
-
-            try:
-                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-            except ValueError:
-                return {'error': 'Invalid date format. Use YYYY-MM-DD'}
-
-            if start_date > end_date:
-                return {'error': 'start_date cannot be greater than end_date'}
-
-            current_year = datetime.now().year
-            current_month = datetime.now().month
-
-            if start_date.year == current_year and end_date.year == current_year:
-                if end_date.month > current_month:
-                    return {'error': 'You cannot request a report for future months in the current year'}
-
-            employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
-            total_employees = len(employees)
-
-            attendances = request.env['hr.attendance'].sudo().search([
-                ('employee_id', 'in', employees.ids),
-                ('check_in', '>=', start_date),
-                ('check_in', '<=', end_date + timedelta(days=1))
-            ])
-
-            daily_report = []
-            global_present_count = 0
-            global_absent_count = 0
-            current_date = start_date
-
-            while current_date <= end_date:
-                day_start = datetime.combine(current_date, datetime.min.time())
-                day_end = datetime.combine(current_date, datetime.max.time())
-                daily_attendances = attendances.filtered(
-                    lambda a: day_start <= a.check_in <= day_end
-                )
-
-                present_ids = daily_attendances.mapped('employee_id.id')
-                absent_ids = list(set(employees.ids) - set(present_ids))
-
-                present_count = len(present_ids)
-                absent_count = len(absent_ids)
-
-                global_present_count += present_count
-                global_absent_count += absent_count
-
-                daily_report.append({
-                    'date': current_date.strftime('%Y-%m-%d'),
-                    'day_of_week': current_date.strftime('%A'),
-                    'present_count': present_count,
-                    'absent_count': absent_count,
-                    'present_employees': [
-                        {'id': emp.id, 'name': emp.name} for emp in employees if emp.id in present_ids
-                    ],
-                    'absent_employees': [
-                        {'id': emp.id, 'name': emp.name} for emp in employees if emp.id in absent_ids
-                    ]
-                })
-
-                current_date += timedelta(days=1)
-
-            report_data = {
-                'company_id': company_id,
-                'date_range': {
-                    'start_date': start_date.strftime('%Y-%m-%d'),
-                    'end_date': end_date.strftime('%Y-%m-%d')
-                },
-                'total_employees': total_employees,
-                'global_summary': {
-                    'total_present': global_present_count,
-                    'total_absent': global_absent_count
-                },
-                'daily_report': daily_report
-            }
-
-            return report_data
-
-        except Exception as e:
-            return {'error': str(e)}
-
     @http.route('/api/notification/read', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
     def set_notification_read(self, **kw):
         data = request.jsonrequest
@@ -1244,7 +1225,7 @@ class CheckIn(http.Controller):
 
         return Response(
             json.dumps(response_data),
-            status=200,  # Código HTTP
+            status=200,
             headers=[
                 ('Content-Type', 'application/json'),
                 ('Content-Length', str(len(json.dumps(response_data))))
@@ -1359,7 +1340,6 @@ class CheckIn(http.Controller):
             maputo_tz = pytz.timezone("Africa/Maputo")
             utc_tz = pytz.utc
 
-
             check_in_dt = maputo_tz.localize(datetime.strptime(check_in, "%Y-%m-%d %H:%M:%S"))
             check_out_dt = maputo_tz.localize(datetime.strptime(check_out, "%Y-%m-%d %H:%M:%S"))
 
@@ -1386,6 +1366,20 @@ class CheckIn(http.Controller):
             "attendance_id": attendance.id
         }
 
+    @http.route('/api/set_timezones/', type='json', auth='public', methods=['POST'])
+    def set_timezones(self, **kwargs):
+        data = request.jsonrequest
+
+        if not data:
+            return {"status": "error", "message": "Preencha todos os campos."}
+
+        employee_id = data.get('employee_id')
+        check_in = data.get('check_in')
+        check_out = data.get('check_out')
+
+        if not employee_id or not check_in or not check_out:
+            return {"status": "error", "message": "Os campos employee_id, check_in e check_out são obrigatórios."}
+
     @http.route('/api/_look_for_fouls/', type='json', auth='public', methods=['POST'])
     def look_for_fouls(self, **kwargs):
         data = request.jsonrequest
@@ -1405,14 +1399,12 @@ class CheckIn(http.Controller):
         if start_date > end_date:
             return {'error': "'date_from' não pode ser maior que 'date_to'"}
 
-
         leaves = request.env['hr.leave'].sudo().search([
             ('date_from', '<=', end_date),
             ('date_to', '>=', start_date),
             ('state', 'in', ['confirm', 'refuse']),
             ('employee_id.company_id', '=', int(company_id))
         ])
-
 
         employee_ids = leaves.mapped('employee_id.id')
         absence_count = len(set(employee_ids))
@@ -1423,3 +1415,252 @@ class CheckIn(http.Controller):
             'date_to': date_to,
             'absent_employees_count': absence_count
         }
+
+    @http.route('/api/address_id/', auth='public', methods=['GET'])
+    def get_address_id(self, **kwargs):
+        record = request.env['zk.machine'].sudo().search([])
+        info = []
+
+        for record in record:
+            info.append({
+                'id': record.id,
+                'address_id': record.address_id.name,
+            })
+
+        return werkzeug.wrappers.Response(json.dumps(info), headers={'Content-Type': 'application/json'}, status=200)
+
+    @http.route('/api/report/overtime', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    def overtime(self, **kw):
+        try:
+            data = request.jsonrequest
+            company_id = data.get('company_id')
+            start_date_str = data.get('start_date')
+            end_date_str = data.get('end_date')
+
+            if not company_id or not start_date_str or not end_date_str:
+                return {'error': 'Company ID, start_date, and end_date are required'}
+
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            except ValueError:
+                return {'error': 'Invalid date format. Use YYYY-MM-DD'}
+
+            if start_date > end_date:
+                return {'error': 'start_date cannot be greater than end_date'}
+
+            current_year = datetime.now().year
+            current_month = datetime.now().month
+
+            if start_date.year == current_year and end_date.year == current_year:
+                if end_date.month > current_month:
+                    return {'error': 'You cannot request a report for future months in the current year'}
+
+            employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+            total_employees = len(employees)
+
+            attendances = request.env['hr.attendance'].sudo().search([
+                ('employee_id', 'in', employees.ids),
+                ('check_in', '>=', start_date),
+                ('check_in', '<=', end_date + timedelta(days=1))
+            ])
+
+            daily_report = []
+            global_present_count = 0
+            global_absent_count = 0
+            current_date = start_date
+
+            while current_date <= end_date:
+                day_start = datetime.combine(current_date, datetime.min.time())
+                day_end = datetime.combine(current_date, datetime.max.time())
+                daily_attendances = attendances.filtered(
+                    lambda a: day_start <= a.check_in <= day_end
+                )
+
+                present_ids = daily_attendances.mapped('employee_id.id')
+                absent_ids = list(set(employees.ids) - set(present_ids))
+
+                present_count = len(present_ids)
+                absent_count = len(absent_ids)
+
+                global_present_count += present_count
+                global_absent_count += absent_count
+
+                daily_report.append({
+                    'date': current_date.strftime('%Y-%m-%d'),
+                    'day_of_week': current_date.strftime('%A'),
+                    'present_count': present_count,
+                    'absent_count': absent_count,
+                    'present_employees': [
+                        {'id': emp.id, 'name': emp.name} for emp in employees if emp.id in present_ids
+                    ],
+                    'absent_employees': [
+                        {'id': emp.id, 'name': emp.name} for emp in employees if emp.id in absent_ids
+                    ]
+                })
+
+                current_date += timedelta(days=1)
+
+            report_data = {
+                'company_id': company_id,
+                'date_range': {
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d')
+                },
+                'total_employees': total_employees,
+                'global_summary': {
+                    'total_present': global_present_count,
+                    'total_absent': global_absent_count
+                },
+                'daily_report': daily_report
+            }
+
+            return report_data
+
+        except Exception as e:
+            return {'error': str(e)}
+
+    @http.route('/api/monitoring/employee/checkin_summary', auth='public', type='json', methods=['POST'])
+    def employee_report(self, **kwargs):
+        data = request.jsonrequest
+        employee_id = data.get('employee_id')
+        month = data.get('month')
+        year = data.get('year')
+
+        if not employee_id or not month or not year:
+            return {'error': 'Employee ID, month, and year are required'}
+
+        try:
+            month = int(month)
+            year = int(year)
+        except ValueError:
+            return {'error': 'Month and year must be numeric'}
+
+        if month < 1 or month > 12:
+            return {'error': 'Invalid month. Use values between 1 and 12'}
+
+        today = datetime.today()
+        last_day_of_month = (datetime(year, month, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+
+        start_date = datetime(year, month, 1)
+        end_date = last_day_of_month
+
+        if year == today.year and month == today.month:
+            end_date = today
+
+        total_days_until_now = (end_date - start_date).days + 1
+
+        attendances = request.env['hr.attendance'].sudo().search([
+            ('employee_id', '=', employee_id),
+            ('check_in', '>=', start_date.strftime("%Y-%m-%d 00:00:00")),
+            ('check_in', '<=', end_date.strftime("%Y-%m-%d 23:59:59")),
+        ])
+
+        worked_days = len(set(attendances.mapped('check_in') or []))
+        absent_days = total_days_until_now - worked_days
+
+        return {
+            'employee_id': employee_id,
+            'month': month,
+            'year': year,
+            'total_days_in_month': last_day_of_month.day,
+            'total_days_until_now': total_days_until_now,
+            'worked_days': worked_days,
+            'absent_days': absent_days,
+        }
+
+    @http.route('/api/report/', auth='public', type='json', methods=['POST'])
+    def report(self, **kwargs):
+        data = request.jsonrequest
+        company_id = data.get('company_id')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+
+        if not company_id or not start_date or not end_date:
+            return {'error': 'Company ID, start_date e end_date são obrigatórios'}
+
+        try:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError:
+            return {'error': 'Formato de data inválido. Use YYYY-MM-DD'}
+
+        if start_date > end_date:
+            return {'error': 'A data de início deve ser antes da data de fim'}
+
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+
+        if start_date.year == current_year or end_date.year == current_year:
+            if end_date.month > current_month:
+                return {'error': 'Não é possível solicitar um relatório para meses futuros no ano atual'}
+
+        employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+        total_employees = len(employees)
+
+        # Buscar as presenças pelo check_in dentro do intervalo
+        attendances = request.env['hr.attendance'].sudo().search([
+            ('employee_id', 'in', employees.ids),
+            ('check_in', '>=', start_date.strftime("%Y-%m-%d 00:00:00")),
+            ('check_in', '<=', end_date.strftime("%Y-%m-%d 23:59:59")),
+        ])
+
+        # Agrupar os registros por funcionário e por dia, mantendo o último registro de cada dia
+        attendance_dict = {}
+        for att in attendances:
+            employee_id = att.employee_id.id
+            check_in_date = att.check_in.date()
+            key = (employee_id, check_in_date)
+
+            if key not in attendance_dict or att.check_in > attendance_dict[key].check_in:
+                attendance_dict[key] = att
+
+        # Criar a lista de presenças com o último registro de cada dia
+        present_list = []
+        present_employee_ids = set()
+        for att in attendance_dict.values():
+            present_list.append({
+                'employee_id': att.employee_id.id,
+                'name': att.employee_id.name,
+                'check_in': att.check_in.strftime("%Y-%m-%d %H:%M:%S") if att.check_in else "",
+                'check_out': att.check_out.strftime("%Y-%m-%d %H:%M:%S") if att.check_out else "Ainda no trabalho"
+            })
+            present_employee_ids.add(att.employee_id.id)
+
+        # Contar o número total de registros de presença (present_list)
+        present_employees = len(present_list)  # Agora conta o número de registros, não de funcionários únicos
+        absent_employees = total_employees - len(
+            present_employee_ids)  # Ausentes são funcionários que nunca estiveram presentes
+
+        # Lista de funcionários ausentes
+        absent_list = []
+        for emp in employees:
+            if emp.id not in present_employee_ids:
+                absent_list.append({
+                    'employee_id': emp.id,
+                    'name': emp.name
+                })
+
+        return {
+            'company_id': company_id,
+            'start_date': start_date.strftime("%Y-%m-%d"),
+            'end_date': end_date.strftime("%Y-%m-%d"),
+            'total_employees': total_employees,
+            'present_employees': present_employees,  # Agora reflete o número de registros de presença
+            'absent_employees': absent_employees,
+            'present_list': present_list,
+            'absent_list': absent_list
+        }
+
+    @http.route('/api/report_attendance/', auth='public', methods=['GET'])
+    def report_attendance(self, **kwargs):
+        record = request.env['hr.attendance'].sudo().search([])
+        info = []
+
+        for i in record:
+            info.append({
+                'employee_id': i.employee_id.name,
+                'check_in': i.check_in.strftime("%Y-%m-%d ") if i.check_in else "",
+                'check_out': i.check_out.strftime("%Y-%m-%d ") if i.check_out else "",
+            })
+        return werkzeug.wrappers.Response(json.dumps(info), headers={'Content-Type': 'application/json'}, status=200)

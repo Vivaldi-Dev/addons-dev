@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <template id="recibo_report_template">
+        <t t-call="web.basic_layout">
+            <div class="pages">
+                <t t-foreach="docs" t-as="doc">
+                    <div style="font-family: Arial, sans-serif; font-size: 14px; margin: 20px;">
+                        <div style="text-align: center; font-weight: bold; margin-bottom: 10px;">
+                            <t t-esc="doc.empresa_id.name"/>
+
+                            <br/>
+                            Recibo de Pagamento
+                        </div>
+                        <table style="border: 1px solid #000; border-collapse: collapse; width: 100%;">
+                            <tr>
+                                <td colspan="2" style="text-align: left; padding: 8px; font-weight: bold;">Endereço</td>
+                                <td colspan="3" style="text-align: center;">Referente ao Mês/Ano:
+                                    <span style="font-weight: bold;">Novembro 2024</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="border: 1px solid #000; padding: 8px;">Nuit</td>
+                                <td colspan="3" style="border: 1px solid #000; padding: 8px;"></td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px;">Cód do Funcionário</td>
+                                <td style="border: 1px solid #000; padding: 8px;">Nome do Funcionário</td>
+                                <td style="border: 1px solid #000; padding: 8px;">Nuit</td>
+                                <td style="border: 1px solid #000; padding: 8px;">INSS</td>
+                                <td style="border: 1px solid #000; padding: 8px;">Função</td>
+                            </tr>
+                            <tr t-foreach="doc.linhas_agregadas" t-as="lines">
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="lines.code"/>
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="lines.employee_id.name"/>
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="lines.numero_contribuinte"/>
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="lines.numero_beneficiario"/>
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="lines.job_position"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 8px;">Código</th>
+                                <th style="border: 1px solid #000; padding: 8px;">Descrição</th>
+                                <th style="border: 1px solid #000; padding: 8px;">Quantidade</th>
+                                <th style="border: 1px solid #000; padding: 8px;">Remuneração</th>
+                                <th style="border: 1px solid #000; padding: 8px;">Descontos</th>
+                            </tr>
+
+                            <tr t-foreach="doc.linhas_agregadas" t-as="line">
+                                <td style="border: 1px solid #000; padding: 8px;">001</td>
+                                <td style="border: 1px solid #000; padding: 8px;">Salário Base</td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="lines.basic_amount"/>
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                            </tr>
+
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px;">002</td>
+                                <td style="border: 1px solid #000; padding: 8px;">Incentivo</td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="lines.inc_amount"/>
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px;">008</td>
+                                <td style="border: 1px solid #000; padding: 8px;">Faltas</td>
+                                <td style="text-align: end; border: 1px solid #000; padding: 8px;">
+
+                                    <t t-foreach="doc.folhas_payslip_ids" t-as="payslip">
+                                        <t t-if="payslip.employee_id == lines.employee_id">
+                                            <t t-if="payslip.input_line_ids">
+                                                <t t-foreach="payslip.input_line_ids" t-as="input_line">
+                                                    <t t-if="input_line.code == 'TO_F_D'">
+                                                        <p>
+                                                            <t t-esc="round(input_line.amount,0)"/>
+                                                        </p>
+                                                    </t>
+                                                </t>
+                                                <p>
+                                                    <t t-esc="remaining"/>
+                                                </p>
+                                            </t>
+                                            <t t-else="">
+                                                <p>Nenhuma linha de entrada encontrada.</p>
+                                            </t>
+                                        </t>
+                                    </t>
+
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="-(lines.descotofaltasdias)"/>
+
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px;">009</td>
+                                <td style="border: 1px solid #000; padding: 8px;">Horas Extras</td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc="lines.horasextrascem + lines.horasextrasc"/>
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px;">003</td>
+                                <td style="border: 1px solid #000; padding: 8px;">INSS (3%)</td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                                <td style="border: 1px solid #000; padding: 8px;"></td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-set="inss" t-value="-(lines.inss_amount)" t-esc="-(lines.inss_amount)"/>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td colspan="3"
+                                    style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">
+                                    Total
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc=" lines.inc_amount+lines.basic_amount + lines.horasextrascem + lines.horasextrasc"/>
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px;">
+                                    <t t-esc=" -(lines.inss_amount)+lines.descotofaltasdias"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="4"
+                                    style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">
+                                    Total Pago:
+                                </td>
+                                <td style="border: 1px solid #000; padding: 8px; font-weight: bold;">
+                                    <t t-esc="(lines.net_amount)"/>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </t>
+            </div>
+        </t>
+    </template>
+</odoo>

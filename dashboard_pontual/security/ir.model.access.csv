@@ -1,2 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dashboard_pontual_dashboard_pontual,dashboard_pontual.dashboard_pontual,model_dashboard_pontual_dashboard_pontual,base.group_user,1,1,1,1
+access_absent_employees,absent,model_absent_employees,,1,1,1,1
+access_hr_employees_without_checkin,hr,model_hr_employees_without_checkin,,1,1,1,1
+access_hr_absent_record,hr,model_hr_absent_record,,1,1,1,1

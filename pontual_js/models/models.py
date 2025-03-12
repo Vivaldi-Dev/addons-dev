@@ -191,3 +191,4 @@ class PontualJS(models.Model):
             'hour_from': morning_from if morning_from else afternoon_from,
             'hour_to': afternoon_to if afternoon_to else morning_to,
         }
+

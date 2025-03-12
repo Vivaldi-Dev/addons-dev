@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <template id="recibo_report_IRPS">
+
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+
+                <t t-call="web.external_layout">
+
+                    <div class="page">
+
+                        <table class="table" style="width: 100%; border-collapse: collapse;">
+                            <tr>
+
+                                <td style="width: 40%; border: 1px solid black; padding: 10px; font-size: 12px;">
+                                    <p class="mb-0">Av. Base N`Tchinga nº 319</p>
+                                    <p>Bairro da Coop, Maputo – Mozambique</p>
+                                </td>
+
+                                <td style="width: 40%; border: 1px solid black; padding: 10px; font-size: 12px;">
+                                    <p style="text-align: end;" class="mb-0">Mapa de IRPS</p>
+                                    <p style="margin-bottom:0px; text-align: end;">Período:
+                                        <t t-esc="['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][int(doc.mes) - 1]"/>
+                                        <t t-esc="doc.year"/>
+                                    </p>
+
+                                </td>
+
+                            </tr>
+                        </table>
+
+                        <table class="table table-bordered"
+                               style="width: 100%; border: 1px solid black; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid black; padding: 8px;">Código do Funcionário</th>
+                                    <th style="border: 1px solid black; padding: 8px;">Nome</th>
+                                    <th style="border: 1px solid black; padding: 8px;">Nº de Contribuinte</th>
+                                    <th style="border: 1px solid black; padding: 8px;">Nº de Beneficiário</th>
+                                    <th style="border: 1px solid black; padding: 8px;">Valor</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <tr t-foreach="sorted(doc.linhas_agregadas, key=lambda line: line.employee_id.name)"
+                                    t-as="line" t-if="line.irps_amout != 0" style="border: 1px solid #000;">
+                                    <t>
+                                        <td style="border: 1px solid black; padding: 8px;">
+                                            <t t-esc="line.code"/>
+                                        </td>
+                                        <td style="border: 1px solid black; padding: 8px;">
+                                            <t t-esc="line.employee_id.name"/>
+                                        </td>
+                                        <td style="border: 1px solid black; padding: 8px;">
+                                            <t t-esc="line.numero_contribuinte"/>
+                                        </td>
+                                        <td style="border: 1px solid black; padding: 8px;">
+                                            <t t-esc="line.numero_beneficiario"/>
+                                        </td>
+                                        <td style="border: 1px solid black; padding: 8px;">
+                                            <t t-esc="(line.irps_amout * -1)"/>
+                                        </td>
+                                    </t>
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+                </t>
+
+
+            </t>
+        </t>
+
+
+    </template>
+</odoo>

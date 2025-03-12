@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
+from odoo.tools.safe_eval import pytz
 
 
 class HrEmployee(models.Model):
@@ -10,6 +11,9 @@ class HrEmployee(models.Model):
 
 class Attendance(models.Model):
     _inherit = 'hr.attendance'
+
+
+
 
     @api.constrains('check_in', 'check_out', 'employee_id')
     def _check_validity(self):
@@ -31,8 +35,28 @@ class Attendance(models.Model):
                                         ('25','Palm'),
                                         ('3','Password'),
                                         ('4','Card')], string='Category')
+
     punching_time = fields.Datetime(string='Punching Time')
     address_id = fields.Many2one('res.partner', string='Working Address')
+
+
+    def script_time_att(self):
+        tz_maputo = pytz.timezone("Africa/Maputo")
+        utc = pytz.utc
+
+
+        attendances = self['hr.attendance'].search([('check_in', '!=', False), ('check_out', '!=', False)])
+
+        for attendance in attendances:
+            if attendance.check_in:
+                check_in_utc = attendance.check_in.replace(tzinfo=utc)
+                check_in_maputo = check_in_utc.astimezone(tz_maputo)
+                attendance.write({'check_in':check_in_maputo})
+
+            if attendance.check_out:
+                check_out_utc = attendance.check_out.replace(tzinfo=utc)
+                check_out_maputo = check_out_utc.astimezone(tz_maputo)
+                attendance.write({'check_out': check_out_maputo})
 
 
 class ZkMachine(models.Model):

@@ -1,0 +1,74 @@
+<odoo>
+    <record id="hr_employee_inherit_form_view" model="ir.ui.view">
+        <field name="name">hr.employee.form</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <field name="user_id" position="after">
+                <field name="device_id"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="inherited_view_attendance_tree" model="ir.ui.view">
+        <field name="name">inherited_hr.attendance.tree</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.view_attendance_tree"/>
+        <field name="arch" type="xml">
+            <field name="worked_hours" position="after">
+                <field name="address_id" type="measure"/>
+            </field>
+        </field>
+    </record>
+
+
+    <record id="view_zk_machine_form" model="ir.ui.view">
+        <field name="name">zk.machine.form</field>
+        <field name="model">zk.machine</field>
+        <field name="arch" type="xml">
+            <form string="Máquina Biométrica">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Número de série"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="address_id"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_zk_machine_tree" model="ir.ui.view">
+        <field name="name">zk.machine.tree</field>
+        <field name="model">zk.machine</field>
+        <field name="arch" type="xml">
+            <tree string="Máquina Biométrica">
+                <field name="name"/>
+                <field name="address_id"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="zk_machine_action" model="ir.actions.act_window">
+        <field name="name">Máquinas</field>
+        <field name="res_model">zk.machine</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+
+    <menuitem id="zk_machine_menu" parent="hr_attendance.menu_hr_attendance_root" sequence="50"
+              name="Máquinas Biométrica"/>
+    <menuitem id="zk_machine_sub_menu" parent="zk_machine_menu" name="Configuração do Dispositivo"
+              action="zk_machine_action" sequence="1"/>
+
+</odoo>

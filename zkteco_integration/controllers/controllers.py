@@ -11,135 +11,162 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
+
 class ZKTecoController(http.Controller):
 
     @http.route('/iclock/cdata', auth='none', methods=['GET', 'POST'], csrf=False)
     def receive_records(self, **kwargs):
-        if request.httprequest.method == 'POST':
-            post_content = request.httprequest.data.decode('utf-8')
-            sn = kwargs.get('SN')
+        try:
+            if request.httprequest.method == 'POST':
+                post_content = request.httprequest.data.decode('utf-8')
+                sn = request.params.get('SN')
 
-            if not sn:
-                _logger.error("Número de série (SN) não encontrado na solicitação.")
-                return "Error: Número de série não encontrado"
+                if not sn:
+                    _logger.error("Número de série (SN) não encontrado na solicitação.")
+                    return "Error: Número de série não encontrado"
 
-            _logger.info("Dados recebidos de ZKTeco: %s", post_content)
+                _logger.info("Dados recebidos de ZKTeco: %s", post_content)
 
-            machine = request.env['zk.machine'].sudo().search([('name', '=', sn)], limit=1)
-            if not machine:
-                return "Error: Máquina com SN não encontrada"
+                machine = request.env['zk.machine'].sudo().search([('name', '=', sn)], limit=1)
+                if not machine:
+                    return "Error: Máquina com SN não encontrada"
 
-            work_area = machine.address_id
-            data_lines = post_content.splitlines()
+                work_area = machine.address_id
+                data_lines = post_content.splitlines()
 
-            maputo_tz = pytz.timezone("Africa/Maputo")
-            utc_tz = pytz.utc
+                maputo_tz = pytz.timezone("Africa/Maputo")
+                utc_tz = pytz.utc
 
-            for line in data_lines:
-                fields = line.split('\t')
-                if len(fields) < 10:
-                    _logger.warning(f"Dados incompletos na linha: {line}")
-                    continue
+                for line in data_lines:
+                    fields = line.split('\t')
+                    if len(fields) < 10:
+                        _logger.warning(f"Dados incompletos na linha: {line}")
+                        continue
 
-                device_id, timestamp, punch_type, attendance_type = fields[0], fields[1], fields[2], fields[3]
-                employee = request.env['hr.employee'].sudo().search([('device_id', '=', device_id)], limit=1)
+                    device_id, timestamp, punch_type, attendance_type = fields[0], fields[1], fields[2], fields[3]
+                    employee = request.env['hr.employee'].sudo().search([('device_id', '=', device_id)], limit=1)
 
-                if not employee:
-                    _logger.warning(f"Empregado não encontrado para o device_id: {device_id}")
-                    continue
+                    if not employee:
+                        _logger.warning(f"Empregado não encontrado para o device_id: {device_id}")
+                        continue
 
-                try:
-                    # print(f"Recebendo timestamp original da máquina: {timestamp}")
+                    try:
+                        attendance_datetime = maputo_tz.localize(datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S'))
+                        attendance_datetime_utc = attendance_datetime.astimezone(utc_tz).replace(tzinfo=None)
+                    except ValueError as e:
+                        _logger.warning(f"Data e hora inválidas na linha: {line}. Erro: {e}")
+                        continue
 
+                    today_start = attendance_datetime_utc.replace(hour=0, minute=0, second=0)
+                    today_end = attendance_datetime_utc.replace(hour=23, minute=59, second=59)
 
-                    attendance_datetime = maputo_tz.localize(datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S'))
+                    if punch_type == '0':  # Check-in
+                        existing_checkin = request.env['hr.attendance'].sudo().search([
+                            ('employee_id', '=', employee.id),
+                            ('check_in', '>=', today_start),
+                            ('check_in', '<=', today_end)
+                        ], order='check_in asc', limit=1)
 
-                    attendance_datetime_utc = attendance_datetime.astimezone(utc_tz).replace(tzinfo=None)
+                        if existing_checkin:
+                            _logger.info(f"Check-in já registrado para {employee.name} hoje, ignorando novo check-in.")
+                            continue
 
-                    # print(f"Timestamp convertido para datetime (UTC naive): {attendance_datetime_utc}")
-
-                except ValueError:
-                    _logger.warning(f"Data e hora inválidas na linha: {line}")
-                    continue
-
-                if punch_type == '0':
-                    print(f"Registrando Check In para {employee.name} às {attendance_datetime_utc}")
-
-                    request.env['hr.attendance'].sudo().create({
-                        'employee_id': employee.id,
-                        'check_in': attendance_datetime_utc,
-                        'punching_time': attendance_datetime_utc,
-                        'punch_type': punch_type,
-                        'attendance_type': attendance_type,
-                        'address_id': work_area.id,
-                    })
-
-                    if employee.x_ativo:
-                        print(f"Criando notificação de Check In para {employee.name} às {attendance_datetime_utc}")
-
-                        request.env['attendance.notification'].sudo().create({
+                        attendance = request.env['hr.attendance'].sudo().create({
                             'employee_id': employee.id,
                             'check_in': attendance_datetime_utc,
+                            'punching_time': attendance_datetime_utc,
+                            'punch_type': punch_type,
+                            'attendance_type': attendance_type,
+                            'address_id': work_area.id,
                         })
 
-                        threading.Thread(target=self.send_to_relevant_websockets,
-                                         args=(employee.id, employee.x_ativo,
-                                               attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
-                                               employee.name)).start()
-                    else:
-                        _logger.info(
-                            f"Check In registrado, mas nenhuma notificação criada para {employee.name} porque x_ativo está False."
-                        )
+                        if employee.x_ativo:
+                            _logger.info(
+                                f"Criando notificação de Check In para {employee.name} às {attendance_datetime_utc}")
+                            request.env['attendance.notification'].sudo().create({
+                                'employee_id': employee.id,
+                                'check_in': attendance_datetime_utc,
+                            })
 
-                elif punch_type == '1':
-                    print(f"Registrando Check Out para {employee.name} às {attendance_datetime_utc}")
-
-                    notification = request.env['attendance.notification'].sudo().search([
-                        ('employee_id', '=', employee.id),
-                        ('check_out', '=', False)
-                    ], order='check_in desc', limit=1)
-
-                    if notification:
-
-                        notification.sudo().write({'check_out': attendance_datetime_utc})
-                        # print(f"Check Out atualizado na notificação de {employee.name} às {attendance_datetime_utc}")
-                    else:
-                        _logger.warning(f"Nenhuma notificação de Check In encontrada para {employee.name}.")
+                            # Enviar notificação via WebSocket para check-in
+                            threading.Thread(target=self.send_to_relevant_websockets,
+                                             args=(employee.id, employee.x_ativo,
+                                                   attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
+                                                   employee.name, 'check-in')).start()
 
 
-                    attendance = request.env['hr.attendance'].sudo().search([
-                        ('employee_id', '=', employee.id),
-                        ('check_out', '=', False)
-                    ], order='check_in desc', limit=1)
+                        else:
+                            _logger.info(
+                                f"Check In registrado, mas nenhuma notificação criada para {employee.name} porque x_ativo está False.")
 
-                    if attendance:
+                    elif punch_type == '1':  # Check-out
+                        _logger.info(f"Registrando Check Out para {employee.name} às {attendance_datetime_utc}")
 
-                        attendance.sudo().write({'check_out': attendance_datetime_utc})
-                        _logger.info(f"Check Out registrado para {employee.name} às {attendance_datetime_utc}")
-                        # print(f"Check Out registrado para {employee.name} às {attendance_datetime_utc}")
-                    else:
-                        _logger.warning(f"Nenhum registro de Check In encontrado para {employee.name}.")
-                else:
-                    _logger.warning(f"Tipo de marcação não suportado: {punch_type}")
+                        attendance = request.env['hr.attendance'].sudo().search([
+                            ('employee_id', '=', employee.id),
+                            ('check_in', '>=', today_start),
+                            ('check_in', '<=', today_end)
+                        ], order='check_in asc', limit=1)
 
-        return http.Response("OK", status=200)
+                        if attendance:
+                            attendance.sudo().write({'check_out': attendance_datetime_utc})
+                            _logger.info(f"Check Out atualizado para {employee.name} às {attendance_datetime_utc}")
+                        else:
+                            _logger.warning(f"Nenhum Check In encontrado para {employee.name}, ignorando Check Out.")
 
-    def send_to_relevant_websockets(self, employee_id, x_ativo, attendance_datetime, employee_name):
-        if x_ativo:
-            message_data = {
-                'employee_id': employee_id,
-                'attendance_datetime': attendance_datetime,
-                'status': 'Check In',
-                'employee_name': employee_name,
-            }
+                        notification = request.env['attendance.notification'].sudo().search([
+                            ('employee_id', '=', employee.id),
+                            ('check_out', '=', False)
+                        ], order='check_in desc', limit=1)
 
-            _logger.info(f"Enviando mensagem para o WebSocket: {message_data}")
-            self.send_message_to_websockets(message_data)
-        else:
-            _logger.info(
-                f"Notificação em tempo real desativada para o empregado {employee_name}. Nenhuma mensagem enviada.")
+                        if notification:
+                            notification.sudo().write({'check_out': attendance_datetime_utc})
+                            _logger.info(
+                                f"Check Out atualizado na notificação de {employee.name} às {attendance_datetime_utc}")
+
+                            # Enviar notificação via WebSocket para check-out
+                            threading.Thread(target=self.send_to_relevant_websockets,
+                                             args=(employee.id, employee.x_ativo,
+                                                   attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
+                                                   employee.name, 'check-out')).start()
+                        else:
+                            _logger.warning(f"Nenhuma notificação de Check In encontrada para {employee.name}.")
+
+            return http.Response("OK", status=200)
+
+        except Exception as e:
+            _logger.error(f"Erro inesperado ao processar os dados: {e}")
+            return http.Response("Internal Server Error", status=500)
+
+    def send_to_relevant_websockets(self, employee_id, x_ativo, timestamp, employee_name, action):
+        """
+        Função para enviar notificações via WebSocket.
+        :param employee_id: ID do empregado
+        :param x_ativo: Status do empregado (True/False)
+        :param timestamp: Timestamp do evento (check-in ou check-out)
+        :param employee_name: Nome do empregado
+        :param action: Tipo de ação ('check-in' ou 'check-out')
+        """
+        try:
+            if x_ativo:
+                message_data = {
+                    'employee_id': employee_id,
+                    'attendance_datetime': timestamp,
+                    'status': action,  # 'Check In' ou 'Check Out'
+                    'employee_name': employee_name,
+                }
+
+                _logger.info(f"Enviando mensagem para o WebSocket: {message_data}")
+                self.send_message_to_websockets(message_data)
+            else:
+                _logger.info(
+                    f"Notificação em tempo real desativada para o empregado {employee_name}. Nenhuma mensagem enviada.")
+
+        except Exception as e:
+            _logger.error(f"Erro ao enviar mensagem WebSocket: {e}")
 
     def send_message_to_websockets(self, message_data):
+
         uri = "ws://localhost:8765"
         try:
             asyncio.run(self.send_message(uri, message_data))
@@ -147,5 +174,6 @@ class ZKTecoController(http.Controller):
             _logger.error(f"Erro ao enviar mensagem via WebSocket: {e}")
 
     async def send_message(self, uri, message_data):
+
         async with websockets.connect(uri) as websocket:
             await websocket.send(str(message_data))

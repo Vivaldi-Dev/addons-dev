@@ -1,24 +1,13 @@
 <odoo>
-    <data>
-<!--
-        <template id="listing">
-          <ul>
-            <li t-foreach="objects" t-as="object">
-              <a t-attf-href="#{ root }/objects/#{ object.id }">
-                <t t-esc="object.display_name"/>
-              </a>
-            </li>
-          </ul>
-        </template>
-        <template id="object">
-          <h1><t t-esc="object.display_name"/></h1>
-          <dl>
-            <t t-foreach="object._fields" t-as="field">
-              <dt><t t-esc="field"/></dt>
-              <dd><t t-esc="object[field]"/></dd>
-            </t>
-          </dl>
-        </template>
--->
-    </data>
+    <template id="custom_products" inherit_id="website_sale.products_item" >
+        <xpath expr="//div[contains(@class, 'o_wsale_product_information_text')]" position="inside">
+            <p class="mb-2">Hello World</p>
+        </xpath>
+    </template>
+
+    <template id="product_add_to_wishlist" inherit_id="website_sale.product" customize_show="True"
+              name="Wishlist Button" priority="20">
+        <xpath expr="//div[@id='product_option_block']" position="inside">
+        </xpath>
+    </template>
 </odoo>

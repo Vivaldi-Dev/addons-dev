@@ -67,34 +67,48 @@ class Authmodel(http.Controller):
             "job_position": employee.job_id.name if employee and employee.job_id else "Sem cargo definido",
         }
 
+        # Obter as empresas permitidas (allowed_company_ids) do usuário
+        user = request.env.user
+        allowed_company_ids = user.company_ids.ids  # IDs das empresas permitidas
+        allowed_companies = [
+            {
+                "id": company.id,
+                "name": company.name,
+            }
+            for company in user.company_ids
+        ]
+
         return {
             "user": {
-                "id": request.env.user.id,
-                "name": request.env.user.name,
-                "email": request.env.user.login,
-                "active": request.env.user.active,
+                "id": user.id,
+                "name": user.name,
+                "email": user.login,
+                "active": user.active,
             },
             "user_context": request.session.get_context() if uid else {},
             "company_id": {
-                "id": request.env.user.company_id.id,
-                "name": request.env.user.company_id.name or "Empresa não definida",
+                "id": user.company_id.id,
+                "name": user.company_id.name or "Empresa não definida",
             },
-            "company_ids": request.env.user.company_ids.ids if uid else [],
-            "partner_id": request.env.user.partner_id.id,
+            "company_ids": user.company_ids.ids if uid else [],
+            "partner_id": user.partner_id.id,
             "company_name": {
-                "id": request.env.user.company_id.id,
-                "name": request.env.user.company_id.name or "Empresa não definida",
+                "id": user.company_id.id,
+                "name": user.company_id.name or "Empresa não definida",
             },
             "country": {
-                "id": request.env.user.country_id.id if request.env.user.country_id else "Nenhum país definido",
-                "name": request.env.user.country_id.name or "Nenhum país definido",
+                "id": user.country_id.id if user.country_id else "Nenhum país definido",
+                "name": user.country_id.name or "Nenhum país definido",
             },
-            "contact_address": request.env.user.contact_address or "Endereço não disponível",
+            "contact_address": user.contact_address or "Endereço não disponível",
             "employee": employee_data,
+            "allowed_company_ids": allowed_company_ids,
+            "allowed_companies": allowed_companies,
             "access_token": access_token_value,
             "refresh_token": refresh_token_value,
             "token_expiry_date": token_expiry_date,
             "refresh_expiry_date": refresh_expiry_date,
+
         }
 
 

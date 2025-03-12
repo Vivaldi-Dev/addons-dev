@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+
+    <template id="recibo_report_INSS" name="Relatório INSS txt">
+        <t t-foreach="docs" t-as="doc">
+
+            <t t-foreach="doc.linhas_agregadas" t-as="linha">
+                <t t-esc="'%s;%s;%s;%s;%s;%s;%s' % (
+                linha.numero_beneficiario or '',
+                '{:.0f}'.format(linha.worked_days - linha.total_leaves) if linha.worked_days and linha.total_leaves else '',
+                linha.code_absent or '',
+                '{:.0f}'.format(linha.basic_amount) if linha.basic_amount else '',
+                linha.inc_amount or '',
+                linha.data_check_in.strftime('%d%m%Y') if linha.data_check_in else '',
+                linha.leave_type or ''
+            )"/>
+
+            </t>
+        </t>
+    </template>
+
+</odoo>

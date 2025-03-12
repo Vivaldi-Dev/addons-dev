@@ -1,300 +1,219 @@
-// odoo.define('dashboardpontual.pontual_js', function (require) {
-//     "use strict";
-//
-//     var AbstractAction = require('web.AbstractAction');
-//     var core = require('web.core');
-//     var rpc = require('web.rpc');
-//     var session = require('web.session');
-//
-//     const DashboardTemplate = AbstractAction.extend({
-//         template: 'pontualdashboard',
-//
-//         start: function () {
-//             this._super.apply(this, arguments);
-//
-//             $('#datePickerPanel').hide();
-//
-//             this.$el.on('click', '#toggleCalendarButton', function () {
-//                 $('#datePickerPanel').toggle();
-//                 console.log('Painel de datas alternado');
-//             });
-//
-//             this.$el.on('click', '#applyButton', function () {
-//                 const startDate = $('#startDate').val();
-//                 const endDate = $('#endDate').val();
-//
-//                 if (!startDate || !endDate) {
-//                     console.error("Por favor, selecione ambas as datas.");
-//                     return;
-//                 }
-//
-//                 self.renderElement(startDate, endDate);
-//             });
-//
-//             const self = this;
-//
-//             setTimeout(() => {
-//                 self.renderElement();
-//             }, 100);
-//         },
-//
-//         render_doughnut_chart: function () {
-//             var self = this;
-//
-//             if (typeof Chart === 'undefined') {
-//                 console.error("Chart.js não foi carregado corretamente!");
-//                 return;
-//             }
-//
-//             var ctx = this.$('.myPieChart')[0]?.getContext('2d');
-//
-//             if (!ctx) {
-//                 console.error("Canvas não encontrado para o gráfico de doughnut!");
-//                 return;
-//             }
-//
-//             if (self.myPieChartInstance) {
-//                 self.myPieChartInstance.destroy();
-//             }
-//
-//             var totalPresents = $('#total_presents').text();
-//             var totalAbsents = $('#total_absents').text();
-//             var totalAtrasos = $('#total_atrasos').text();
-//
-//             var data = {
-//                 labels: ['Presentes', 'Ausentes', 'Atrasos'],
-//                 datasets: [{
-//                     label: 'Assiduidade',
-//                     data: [parseInt(totalPresents) || 0, parseInt(totalAbsents) || 0, parseInt(totalAtrasos) || 0],
-//                     backgroundColor: [
-//                         '#71639e',
-//                         '#e74a3b',
-//                         '#36b9cc'
-//                     ],
-//                     hoverOffset: 4
-//                 }]
-//             };
-//
-//             self.myPieChartInstance = new Chart(ctx, {
-//                 type: 'doughnut',
-//                 data: data
-//             });
-//         },
-//
-//         render_line_chart: function () {
-//             var self = this;
-//
-//             if (typeof Chart === 'undefined') {
-//                 console.error("Chart.js não foi carregado corretamente!");
-//                 return;
-//             }
-//
-//             var ctx = this.$('#myLineChart')[0]?.getContext('2d');
-//
-//             if (!ctx) {
-//                 console.error("Canvas não encontrado para o gráfico de linhas!");
-//                 return;
-//             }
-//
-//             if (self.myLineChartInstance) {
-//                 self.myLineChartInstance.destroy();
-//             }
-//
-//             const attendance_by_day = self.attendance_by_day || [];
-//             const labels = attendance_by_day.map(day => day.day_of_week);
-//             const ausentes_data = attendance_by_day.map(day => day.ausentes);
-//             const presentes_data = attendance_by_day.map(day => day.presentes);
-//
-//             console.log("Labels:", labels);
-//             console.log("Dados de ausentes:", ausentes_data);
-//             console.log("Dados de presentes:", presentes_data);
-//
-//             const data = {
-//                 labels: labels,
-//                 datasets: [
-//                     {
-//                         label: 'Faltas na Semana',
-//                         data: ausentes_data,
-//                         fill: false,
-//                         borderColor: 'rgb(255, 99, 132)',
-//                         tension: 0.1
-//                     },
-//                     {
-//                         label: 'Presentes na Semana',
-//                         data: presentes_data,
-//                         fill: false,
-//                         borderColor: '#71639e',
-//                         tension: 0.1
-//                     }
-//                 ]
-//             };
-//
-//             self.myLineChartInstance = new Chart(ctx, {
-//                 type: 'line',
-//                 data: data,
-//                 options: {
-//                     responsive: true,
-//                     maintainAspectRatio: false,
-//                     scales: {
-//                         y: {
-//                             beginAtZero: true
-//                         }
-//                     }
-//                 }
-//             });
-//         },
-//
-//         render_bar_chart: function () {
-//             var self = this;
-//
-//             if (typeof Chart === 'undefined') {
-//                 console.error("Chart.js não foi carregado corretamente!");
-//                 return;
-//             }
-//
-//             var ctx = this.$('#myBarChart')[0]?.getContext('2d');
-//
-//             if (!ctx) {
-//                 console.error("Canvas não encontrado para o gráfico de barras!");
-//                 return;
-//             }
-//
-//             if (self.myBarChartInstance) {
-//                 self.myBarChartInstance.destroy();
-//             }
-//
-//             if (!self.attendance_by_day || self.attendance_by_day.length === 0) {
-//                 console.warn("Nenhum dado de presença disponível para exibição no gráfico de barras.");
-//                 return;
-//             }
-//
-//             const labels = self.attendance_by_day.map(item => item.date);
-//
-//             const presentesData = self.attendance_by_day.map(item => item.presentes);
-//             const ausentesData = self.attendance_by_day.map(item => item.ausentes);
-//
-//             const data = {
-//                 labels: labels,
-//                 datasets: [
-//                     {
-//                         label: 'Presentes',
-//                         data: presentesData,
-//                         backgroundColor: 'rgba(75, 192, 192, 0.6)',
-//                         borderColor: 'rgba(75, 192, 192, 1)',
-//                         borderWidth: 1
-//                     },
-//                     {
-//                         label: 'Ausentes',
-//                         data: ausentesData,
-//                         backgroundColor: 'rgba(255, 99, 132, 0.6)',
-//                         borderColor: 'rgba(255, 99, 132, 1)',
-//                         borderWidth: 1
-//                     }
-//                 ]
-//             };
-//
-//             self.myBarChartInstance = new Chart(ctx, {
-//                 type: 'bar',
-//                 data: data,
-//                 options: {
-//                     responsive: true,
-//                     maintainAspectRatio: false,
-//                     scales: {
-//                         y: {
-//                             beginAtZero: true
-//                         }
-//                     }
-//                 }
-//             });
-//         },
-//
-//         renderElement: function (customStartDate, customEndDate) {
-//             const self = this;
-//             this._super();
-//
-//             setTimeout(() => {
-//                 if (!session || !session.uid) {
-//                     console.error("Sessão não está disponível ou uid não está definido.");
-//                     return;
-//                 }
-//
-//                 const company_id = session.user_context.allowed_company_ids[0];
-//                 if (!company_id) {
-//                     console.error("Nenhuma empresa ativa encontrada na sessão.");
-//                     return;
-//                 }
-//
-//                 let startDate, endDate;
-//
-//                 if (customStartDate && customEndDate) {
-//
-//                     startDate = customStartDate;
-//                     endDate = customEndDate;
-//                 } else {
-//
-//                     let today = new Date();
-//                     startDate =  new Date(today.setDate(today.getDate() - today.getDay() + 1));
-//                     endDate = new new Date(today.setDate(today.getDate() - today.getDay() + 7));
-//                     startDate = startDate.toISOString().slice(0, 10);
-//                     endDate = endDate.toISOString().slice(0, 10);
-//                 }
-//
-//
-//                 rpc.query({
-//                     model: "pontual_js.pontual_js",
-//                     method: "get_pontual_js_data",
-//                     args: [startDate, endDate, company_id]
-//                 }).then(function (result) {
-//                     let totalFuncionarios = result['total_employees'];
-//                     let totalPresents = result['total_presents'];
-//                     let totalAbsents = result['total_absents'];
-//                     let totalAtrasos = result['total_atrasos'];
-//
-//                     let presentes = result['total_presents'];
-//                     let ausentes = result['total_absents'];
-//                     let funcionario = result['total_employees'];
-//                     let atrsos = result['total_atrasos'];
-//
-//                     let percentPresents = (presentes / funcionario) * 100;
-//                     let percentAbsents = (ausentes / funcionario) * 100;
-//                     let percentAtrasos = (atrsos / funcionario) * 100;
-//
-//                     let pPresents = ((presentes / funcionario) * 100).toFixed(2);
-//                     let pAbsents = ((ausentes / funcionario) * 100).toFixed(2);
-//                     let ptAtrasos = ((atrsos / funcionario) * 100).toFixed(2);
-//
-//                     $('#total_presents').text(totalPresents);
-//                     $('#total_absents').text(totalAbsents);
-//                     $('#total_atrasos').text(totalAtrasos);
-//
-//                     $('.custom-prents').css('width', pPresents + '%').attr('aria-valuenow', pPresents);
-//                     $('.bg-danger').css('width', pAbsents + '%').attr('aria-valuenow', pAbsents);
-//                     $('.custom-atrsos').css('width', ptAtrasos + '%').attr('aria-valuenow', ptAtrasos);
-//
-//                     $('.text-success-custom').html(`<i class="fas fa-user-check"></i> ${pPresents}%`);
-//                     $('.text-danger-custom').html(`<i class="fas fa-user-times"></i> ${pAbsents}%`);
-//                     $('.text-warning-custom').html(`<i class="fas fa-clock"></i> ${ptAtrasos}%`);
-//
-//                     $('.text-success-custom').closest('div').find('small').text(`Presentes (${totalPresents} funcionários)`);
-//                     $('.text-danger-custom').closest('div').find('small').text(`Ausentes (${totalAbsents} funcionários)`);
-//                     $('.text-warning-custom').closest('div').find('small').text(`Atrasos (${totalAtrasos} funcionários)`);
-//
-//                     $('.custom-prents').closest('.progress').prev().find('.float-right').text(percentPresents.toFixed(2) + '%');
-//                     $('.bg-danger').closest('.progress').prev().find('.float-right').text(percentAbsents.toFixed(2) + '%');
-//                     $('.custom-atrsos').closest('.progress').prev().find('.float-right').text(percentAtrasos.toFixed(2) + '%');
-//
-//                     self.attendance_by_day = result['attendance_by_day'];
-//                     self.render_doughnut_chart();
-//                     self.render_line_chart();
-//                     self.render_bar_chart();
-//                 }).catch(function (error) {
-//                     console.error("Erro ao buscar os dados:", error);
-//                 });
-//             }, 500);
-//         },
-//
-//     });
-//
-//     core.action_registry.add('dashboardpontual', DashboardTemplate);
-//     return DashboardTemplate;
-// });
+odoo.define('dashPontual.dashboard_pontual', function (require) {
+    "use strict"
+
+    var AbstractAction = require('web.AbstractAction');
+    var core = require('web.core');
+    var rpc = require('web.rpc');
+    var session = require('web.session');
+
+    let myPieChart;
+    let myLineChart;
+
+    const dashpontualTemplate = AbstractAction.extend({
+        template: 'dashpontual',
+
+        start: function () {
+            this._super.apply(this, arguments);
+
+            let {startOfWeek, endOfWeek} = this.getCurrentWeek();
+            $('#startDate').val(startOfWeek);
+            $('#endDate').val(endOfWeek);
+
+            this.getPontualData(startOfWeek, endOfWeek, true);
+
+            this.$el.on('click', '#toggleCalendarButton', function () {
+                $('#datePickerPanel').toggleClass('show');
+            });
+
+            this.$el.on('click', '#applyButton', () => {
+                let startDate = $('#startDate').val();
+                let endDate = $('#endDate').val();
+                this.getPontualData(startDate, endDate);
+            });
+        },
+
+        getPontualData: function (startDate, endDate, isInitialLoad = false) {
+            if (!session || !session.uid) {
+                console.error("Sessão não está disponível ou uid não está definido.");
+                return;
+            }
+
+            const company_id = session.user_context.allowed_company_ids[0];
+            if (!company_id) {
+                console.error("Nenhuma empresa ativa encontrada na sessão.");
+                return;
+            }
+
+            let today = new Date().toISOString().split('T')[0];
+
+            let requestStartDate = isInitialLoad ? today : startDate;
+            let requestEndDate = isInitialLoad ? today : endDate;
+
+            rpc.query({
+                model: 'dashboard_pontual.dashboard_pontual',
+                method: 'get_pontual_js_data',
+                args: [requestStartDate, requestEndDate, company_id]
+            }).then((data) => {
+                $('#total_presents').text(data.total_presents);
+                $('#total_absents').text(data.total_absents);
+                $('#total_atrasos').text(data.total_atrasos);
+
+                this.render_doughnut_chart(data.total_presents, data.total_absents, data.total_atrasos);
+
+                // Atualizar barras de progresso
+                this.updateProgressBars(data.total_presents, data.total_absents, data.total_atrasos);
+            }).catch(function (error) {
+                console.error("Erro ao buscar dados: ", error);
+            });
+
+            let lineChartStartDate = isInitialLoad ? this.getCurrentWeek().startOfWeek : startDate;
+            let lineChartEndDate = isInitialLoad ? this.getCurrentWeek().endOfWeek : endDate;
+
+            rpc.query({
+                model: 'dashboard_pontual.dashboard_pontual',
+                method: 'get_pontual_js_data',
+                args: [lineChartStartDate, lineChartEndDate, company_id]
+            }).then((data) => {
+                this.render_line_chart(data.attendance_by_day);
+            }).catch(function (error) {
+                console.error("Erro ao buscar dados para o gráfico de linha: ", error);
+            });
+        },
+
+
+        updateProgressBars: function (presents, absents, atrasos) {
+            let total = presents + absents + atrasos;
+            let presentsPercentage = total > 0 ? (presents / total) * 100 : 0;
+            let absentsPercentage = total > 0 ? (absents / total) * 100 : 0;
+            let atrasosPercentage = total > 0 ? (atrasos / total) * 100 : 0;
+
+
+            $('#presents-percentage').text(presentsPercentage.toFixed(0) + "%");
+            $('#absents-percentage').text(absentsPercentage.toFixed(0) + "%");
+            $('#atrasos-percentage').text(atrasosPercentage.toFixed(0) + "%");
+
+
+            $('.custom-prents').css('width', presentsPercentage + "%").attr('aria-valuenow', presentsPercentage);
+            $('.progress-bar.bg-danger').css('width', absentsPercentage + "%").attr('aria-valuenow', absentsPercentage);
+            $('.custom-atrsos').css('width', atrasosPercentage + "%").attr('aria-valuenow', atrasosPercentage);
+
+
+            $('#presents-text').html(`<i class="fas fa-user-check"></i> ${presentsPercentage.toFixed(0)}%`);
+            $('#presents-count').text(`Presentes (${presents} funcionários)`);
+
+            $('#absents-text').html(`<i class="fas fa-user-times"></i> ${absentsPercentage.toFixed(0)}%`);
+            $('#absents-count').text(`Ausentes (${absents} funcionários)`);
+
+            $('#atrasos-text').html(`<i class="fas fa-clock"></i> ${atrasosPercentage.toFixed(0)}%`);
+            $('#atrasos-count').text(`Atrasos (${atrasos} funcionários)`);
+        },
+
+
+
+        render_doughnut_chart: function (presentes, ausentes, atrasos) {
+            let ctx = document.getElementById("myPieChart").getContext("2d");
+
+            if (myPieChart) {
+                myPieChart.destroy();
+            }
+
+            myPieChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ["Presentes", "Ausentes", "Atrasos"],
+                    datasets: [{
+                        data: [presentes, ausentes, atrasos],
+                        backgroundColor: ["#4CAF50", "#F44336", "#FF9800"],
+                        hoverBackgroundColor: ["#45A049", "#D32F2F", "#FB8C00"],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        },
+
+        render_line_chart: function (attendance_by_day) {
+            let ctx = document.getElementById("myLineChart").getContext("2d");
+
+            let labels = attendance_by_day.map(day => day.day_of_week);
+            let presentes = attendance_by_day.map(day => day.presentes);
+            let ausentes = attendance_by_day.map(day => day.ausentes);
+
+
+            if (myLineChart) {
+                myLineChart.destroy();
+            }
+
+            myLineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "Presentes",
+                            data: presentes,
+                            borderColor: "#4CAF50",
+                            backgroundColor: "rgba(76, 175, 80, 0.2)",
+                            borderWidth: 2,
+                            fill: true
+                        },
+                        {
+                            label: "Ausentes",
+                            data: ausentes,
+                            borderColor: "#F44336",
+                            backgroundColor: "rgba(244, 67, 54, 0.2)",
+                            borderWidth: 2,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: "Dias da Semana"
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: "Quantidade de Funcionários"
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        },
+
+        getCurrentWeek: function () {
+            let today = new Date();
+            let first = today.getDate() - today.getDay();
+            let last = first + 6;
+
+            let startOfWeek = new Date(today.setDate(first)).toISOString().split('T')[0];
+            let endOfWeek = new Date(today.setDate(last)).toISOString().split('T')[0];
+
+            return {startOfWeek, endOfWeek};
+        }
+    });
+
+    core.action_registry.add('dashPontual', dashpontualTemplate);
+    return dashpontualTemplate;
+});

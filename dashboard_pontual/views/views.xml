@@ -1,13 +1,186 @@
 <odoo>
+
+    <record id="view_attendance_tree_inherit" model="ir.ui.view">
+        <field name="name">hr.attendance.tree.inherit</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.view_attendance_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='worked_hours']" position="after">
+                <field name="status" widget="color_picker"/>
+                <field name="delay_duration" string="Delay (HH:MM)"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="hr_attendance_view_form_inherit" model="ir.ui.view">
+        <field name="name">hr.attendance.form.inherit</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='check_out']" position="after">
+                <field name="status" widget="color_picker"/>
+                <field name="delay_duration" string="Delay (HH:MM)"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="hr_attendance_view_filter_inherit" model="ir.ui.view">
+        <field name="name">hr.attendance.view.filter.inherit</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='nocheckout']" position="after">
+                <filter string="Com Atraso" name="with_delay" domain="[('delay_minutes', '>', 0)]"/>
+            </xpath>
+        </field>
+    </record>
+
+
+    <record id="view_hr_absent_employees_form" model="ir.ui.view">
+        <field name="name">absent.employees.form</field>
+        <field name="model">absent.employees</field>
+        <field name="arch" type="xml">
+            <form string="Funcionários Ausentes">
+                <sheet>
+                    <group>
+                        <field name="company_id"/>
+                    </group>
+                    <group>
+                        <field name="employee_ids" widget="many2many_tags"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_hr_absent_employees_tree" model="ir.ui.view">
+        <field name="name">absent.employees.tree</field>
+        <field name="model">absent.employees</field>
+        <field name="arch" type="xml">
+            <tree string="Funcionários Ausentes">
+                <field name="company_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_hr_absent_employees" model="ir.actions.act_window">
+        <field name="name">Funcionários Ausentes</field>
+        <field name="res_model">absent.employees</field>
+        <field name="view_mode">form,tree</field>
+        <field name="target">new</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Nenhum funcionário ausente encontrado.
+            </p>
+        </field>
+    </record>
+
+    <record id="view_employees_without_checkin_form" model="ir.ui.view">
+        <field name="name">hr.employees.without.checkin.form</field>
+        <field name="model">hr.employees.without.checkin</field>
+        <field name="arch" type="xml">
+            <form string="Funcionário sem Check-in">
+                <sheet>
+                    <group>
+                        <field name="employee_id" string="Funcionário"/>
+                        <field name="employee_name" string="Nome do Funcionário"/>
+                        <field name="company_id" string="Empresa"/>
+                        <field name="date" string="Data"/>
+                        <field name="start_date" string="Data Inicial"/>
+                        <field name="end_date" string="Data Final"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_employees_without_checkin_tree" model="ir.ui.view">
+        <field name="name">hr.employees.without.checkin.tree</field>
+        <field name="model">hr.employees.without.checkin</field>
+        <field name="arch" type="xml">
+            <tree string="Funcionários sem Check-in">
+                <field name="employee_id" string="Funcionário"/>
+                <field name="company_id" string="Empresa"/>
+                <field name="date" string="Data" attrs="{'invisible': [('date', '=', False)]}"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_employees_without_checkin_search" model="ir.ui.view">
+        <field name="name">hr.employees.without.checkin.search</field>
+        <field name="model">hr.employees.without.checkin</field>
+        <field name="arch" type="xml">
+            <search string="Funcionários sem Check-in">
+                <field name="employee_id" string="Funcionário"/>
+                <field name="date" string="Data"/>
+
+                <filter string="My Attendances" name="myattendances" domain="[('employee_id.user_id.id', '=', uid)]" />
+
+                <field name="start_date" invisible="1"/>
+                <field name="end_date" invisible="1"/>
+
+                <separator/>
+
+                <filter string="Check In" name="check_in_filter" date="date" default_period="last_month"/>
+
+                <group expand="0" string="Group By">
+                    <filter string="Employee" name="employee" context="{'group_by': 'employee_id'}"/>
+
+                </group>
+            </search>
+        </field>
+    </record>
+
+
+    <record id="action_employees_without_checkin" model="ir.actions.act_window">
+        <field name="name">Funcionários Ausentes</field>
+        <field name="res_model">hr.employees.without.checkin</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Nenhum funcionário ausente encontrado.
+            </p>
+        </field>
+        <field name="target">current</field>
+    </record>
+
+
+    <record id="view_hr_absent_record_tree" model="ir.ui.view">
+        <field name="name">hr.absent.record.tree</field>
+        <field name="model">hr.absent.record</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="employee_id"/>
+                <field name="company_id"/>
+                <field name="absent_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_hr_absent_record" model="ir.actions.act_window">
+        <field name="name">Funcionários Ausentes</field>
+        <field name="res_model">hr.absent.record</field>
+        <field name="view_mode">tree</field>
+        <field name="domain">[('absent_date', '=', context_today)]</field>
+    </record>
+
     <record id="action_dashpontual" model="ir.actions.client">
-        <field name="name">dashboard_pontual</field>
+        <field name="name">Dashboard</field>
         <field name="tag">dashPontual</field>
         <field name="target">main</field>
     </record>
 
 
-    <menuitem name="Dash Pontual" id="pontual"
-                  web_icon="dashboard_pontual,static/description/icon.png"
-                  action="action_dashpontual" sequence="70"/>
+    <menuitem name="Dashboard Pontual" id="pontual"
+              web_icon="dashboard_pontual,static/description/icon.png"
+              action="action_dashpontual" sequence="70"/>
+
+    <menuitem id="menu_Attendances"
+              name="Ausentes"
+              parent="hr_attendance.menu_hr_attendance_root"
+              sequence="11"
+              action="action_employees_without_checkin"
+    />
+
 
 </odoo>
