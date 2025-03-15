@@ -1041,10 +1041,9 @@ class CheckIn(http.Controller):
             return {'error': str(e)}
 
     @http.route('/api/monitoring/absentens', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @coach_required
     def absentens(self, **kw):
         data = request.jsonrequest
-
-        print(data)
 
         if not data:
             return {'error': 'A requisição precisa conter dados.'}
@@ -1055,6 +1054,11 @@ class CheckIn(http.Controller):
 
         start_date = data.get('start_date')
         end_date = data.get('end_date')
+        by_name = data.get('by_name')
+
+        page = int(data.get('page', 1))
+        limit = int(data.get('limit', 5))
+        offset = (page - 1) * limit
 
         tz_maputo = pytz.timezone('Africa/Maputo')
         tz_utc = pytz.utc
@@ -1072,24 +1076,255 @@ class CheckIn(http.Controller):
             return {'error': 'A data inicial não pode ser posterior à data final.'}
 
         Leave = request.env['hr.leave'].sudo()
-        domain = [('state', '=', 'validate')]
+
+        # Filtra apenas os funcionários gerenciados pelo coach
+        coached_employee_ids = kw.get('coached_employee_ids', [])
+        domain = [
+            ('state', 'in', ['confirm', 'refuse', 'validate']),
+            ('employee_id.company_id', '=', int(company_id)),
+            ('employee_id', 'in', coached_employee_ids)  # Filtra apenas os funcionários do coach
+        ]
+
+        if by_name:
+            domain.append(('employee_id.name', 'ilike', by_name))
 
         if start_date:
             domain.append(('date_from', '>=', start_date))
         if end_date:
             domain.append(('date_to', '<=', end_date))
 
-        leaves = Leave.search(domain)
+        state_mapping = {
+            'draft': 'To Submit',
+            'confirm': 'To Approve',
+            'refuse': 'Refused',
+            'validate1': 'Second Approval',
+            'validate': 'Approved'
+        }
+
+        # Busca as ausências com paginação
+        leaves = Leave.search(domain, offset=offset, limit=limit)
+        total_leaves = Leave.search_count(domain)
 
         result = []
         for leave in leaves:
-            if leave.employee_id.company_id.id == int(company_id):
+            result.append({
+                'employee_id': leave.employee_id.id,
+                'employee_name': leave.employee_id.name,
+                'date_from': leave.date_from.strftime('%Y-%m-%d %H:%M:%S'),
+                'date_to': leave.date_to.strftime('%Y-%m-%d %H:%M:%S'),
+                'leave_type': leave.holiday_status_id.name,
+                'state': state_mapping.get(leave.state, leave.state),
+            })
+
+        return {
+            'absent_employees': result,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total_records': total_leaves,
+                'total_pages': (total_leaves + limit - 1) // limit
+            }
+        }
+
+    @token_required
+    @http.route('/api/monitoring/absentens', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @coach_required
+    def absentens(self, **kw):
+        data = request.jsonrequest
+
+        if not data:
+            return {'error': 'A requisição precisa conter dados.'}
+
+        company_id = data.get('company_id')
+        if not company_id:
+            return werkzeug.wrappers.Response(
+                json.dumps({'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}),
+                headers=[('Content-Type', 'application/json')],
+                status=400
+            )
+
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        by_name = data.get('by_name')
+
+        page = int(data.get('page', 1))
+        limit = int(data.get('limit', 5))
+        offset = (page - 1) * limit
+
+        tz_maputo = pytz.timezone('Africa/Maputo')
+        tz_utc = pytz.utc
+
+        try:
+            if start_date:
+                start_date = tz_maputo.localize(datetime.strptime(start_date, '%Y-%m-%d')).astimezone(tz_utc)
+            if end_date:
+                end_date = tz_maputo.localize(datetime.strptime(end_date, '%Y-%m-%d')).astimezone(
+                    tz_utc) + timedelta(days=1, seconds=-1)
+        except ValueError:
+            return {'error': 'As datas devem estar no formato "YYYY-MM-DD".'}
+
+        if start_date and end_date and start_date > end_date:
+            return {'error': 'A data inicial não pode ser posterior à data final.'}
+
+        Leave = request.env['hr.leave'].sudo()
+
+        domain = [
+            ('state', 'in', ['confirm', 'refuse', 'validate']),
+            ('employee_id.company_id', '=', int(company_id)),
+            ('employee_id', 'in', kw.get('coached_employee_ids', []))
+        ]
+
+        if by_name:
+            domain.append(('employee_id.name', 'ilike', by_name))
+
+        if start_date:
+            domain.append(('date_from', '>=', start_date))
+        if end_date:
+            domain.append(('date_to', '<=', end_date))
+
+        state_mapping = {
+            'draft': 'To Submit',
+            'confirm': 'To Approve',
+            'refuse': 'Refused',
+            'validate1': 'Second Approval',
+            'validate': 'Approved'
+        }
+
+        leaves = Leave.search(domain, offset=offset, limit=limit)
+        total_leaves = Leave.search_count(domain)
+
+        result = []
+        for leave in leaves:
+            employee = leave.employee_id
+            resource_calendar = employee.resource_calendar_id
+
+            date_from = leave.date_from
+            date_to = leave.date_to
+
+            day_of_week = date_from.weekday()
+
+            is_work_day = False
+            for attendance in resource_calendar.attendance_ids:
+                if attendance.dayofweek == str(day_of_week):
+                    is_work_day = True
+                    break
+
+            if is_work_day:
                 result.append({
-                    'employee_id': leave.employee_id.id,
-                    'employee_name': leave.employee_id.name,
-                    'date_from': leave.date_from.strftime('%Y-%m-%d %H:%M:%S'),
-                    'date_to': leave.date_to.strftime('%Y-%m-%d %H:%M:%S'),
-                    'leave_type': leave.holiday_status_id.name
+                    'employee_id': employee.id,
+                    'employee_name': employee.name,
+                    'description': leave.name,
+                    'date_from': date_from.strftime('%Y-%m-%d %H:%M:%S'),
+                    'date_to': date_to.strftime('%Y-%m-%d %H:%M:%S'),
+                    'leave_type': leave.holiday_status_id.name,
+                    'state': state_mapping.get(leave.state, leave.state),
+                    'is_absence': True
+                })
+            else:
+                result.append({
+                    'employee_id': employee.id,
+                    'employee_name': employee.name,
+                    'description': leave.name,
+                    'date_from': date_from.strftime('%Y-%m-%d %H:%M:%S'),
+                    'date_to': date_to.strftime('%Y-%m-%d %H:%M:%S'),
+                    'leave_type': leave.holiday_status_id.name,
+                    'state': state_mapping.get(leave.state, leave.state),
+                    'is_absence': False
                 })
 
-        return {'absent_employees': result}
+        return {
+            'absent_employees': result,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total_records': total_leaves,
+                'total_pages': (total_leaves + limit - 1) // limit
+            }
+        }
+
+    @http.route('/api/monitoring/absentens', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    def absentens(self, **kw):
+        data = request.jsonrequest
+
+        if not data:
+            return {'error': 'A requisição precisa conter dados.'}
+
+        company_id = data.get('company_id')
+        if not company_id:
+            return werkzeug.wrappers.Response(
+                json.dumps({'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}),
+                headers=[('Content-Type', 'application/json')],
+                status=400
+            )
+
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        by_name = data.get('by_name')  # Filtro opcional por nome
+
+        # Parâmetros de paginação
+        page = int(data.get('page', 1))  # Página atual (padrão: 1)
+        limit = int(data.get('limit', 5))  # Número de registros por página (padrão: 5)
+        offset = (page - 1) * limit  # Calcula o offset com base na página e no limite
+
+        tz_maputo = pytz.timezone('Africa/Maputo')
+        tz_utc = pytz.utc
+
+        try:
+            if start_date:
+                start_date = tz_maputo.localize(datetime.strptime(start_date, '%Y-%m-%d')).astimezone(tz_utc)
+            if end_date:
+                end_date = tz_maputo.localize(datetime.strptime(end_date, '%Y-%m-%d')).astimezone(
+                    tz_utc) + timedelta(days=1, seconds=-1)
+        except ValueError:
+            return {'error': 'As datas devem estar no formato "YYYY-MM-DD".'}
+
+        if start_date and end_date and start_date > end_date:
+            return {'error': 'A data inicial não pode ser posterior à data final.'}
+
+        Leave = request.env['hr.leave'].sudo()
+        domain = [
+            ('state', 'in', ['confirm', 'refuse', 'validate']),
+            ('employee_id.company_id', '=', int(company_id))  # Filtra diretamente pelo company_id
+        ]
+
+        # Adiciona o filtro por nome, se fornecido
+        if by_name:
+            domain.append(('employee_id.name', 'ilike', by_name))  # Filtra por nome (case-insensitive)
+
+        if start_date:
+            domain.append(('date_from', '>=', start_date))
+        if end_date:
+            domain.append(('date_to', '<=', end_date))
+
+        state_mapping = {
+            'draft': 'To Submit',
+            'confirm': 'To Approve',
+            'refuse': 'Refused',
+            'validate1': 'Second Approval',
+            'validate': 'Approved'
+        }
+
+        # Aplica a paginação
+        leaves = Leave.search(domain, offset=offset, limit=limit)
+        total_leaves = Leave.search_count(domain)  # Conta o total de registros sem paginação
+
+        result = []
+        for leave in leaves:
+            result.append({
+                'employee_id': leave.employee_id.id,
+                'employee_name': leave.employee_id.name,
+                'date_from': leave.date_from.strftime('%Y-%m-%d %H:%M:%S'),
+                'date_to': leave.date_to.strftime('%Y-%m-%d %H:%M:%S'),
+                'leave_type': leave.holiday_status_id.name,
+                'state': state_mapping.get(leave.state, leave.state)
+            })
+
+        return {
+            'absent_employees': result,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total_records': total_leaves,
+                'total_pages': (total_leaves + limit - 1) // limit  # Calcula o número total de páginas
+            }
+        }

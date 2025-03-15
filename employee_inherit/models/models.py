@@ -37,6 +37,9 @@ class HolidaysRequest(models.Model):
                 'validate': [('readonly', True)]},
         domain=[])
 
+    name = fields.Text('Description', compute='_compute_description', inverse='_inverse_description', search='_search_description', compute_sudo=False)
+
+
 
 class HrPayslipRun(models.Model):
     _inherit = 'hr.payslip.run'
@@ -56,3 +59,11 @@ class HrPayslipRun(models.Model):
             args.append(('company_id', '=', company_id))
 
         return super(HrPayslipRun, self).search(args, offset=offset, limit=limit, order=order, count=count)
+
+# class Users(models.Model):
+#     _inherit = 'res.users'
+#
+#     hr_roles = fields.Selection([
+#         ('admin', 'Administrador'),
+#         ('officer', 'Oficial'),
+#     ], string="HR Role", default='officer', help="Define o papel do usuário nos Recursos Humanos")

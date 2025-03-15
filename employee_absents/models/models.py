@@ -243,87 +243,99 @@ class HolidaysRequest(models.Model):
 
     @api.model
     def absents(self):
+        """
+        Método para cron job que registra faltas dos funcionários que não registraram presença no dia anterior.
+        Funciona para todas as empresas.
+        """
         now = datetime.now()
         yesterday = fields.Date.today() - timedelta(days=1)
-
-        employees = self.env['hr.employee'].search([])
 
         maputo_tz = pytz.timezone("Africa/Maputo")
         utc_tz = pytz.utc
 
         day_of_week = yesterday.weekday()
-        work_days_data = self.work_days(day_of_week)
 
-        attended_employees = self.env['hr.attendance'].search([
-            ('check_in', '>=', yesterday),
-            ('check_in', '<', fields.Date.today())
-        ]).mapped('employee_id')
+        companies = self.env['res.company'].search([])
+        for company in companies:
 
-        absent_employees = employees - attended_employees
+            employees = self.env['hr.employee'].search([('company_id', '=', company.id)])
 
-        leave_type = self.env['hr.leave.type'].search([('name', '=', 'Falta')], limit=1)
-        if not leave_type:
-            return {'error': 'Tipo de ausência "Falta" não encontrado.'}
+            attended_employees = self.env['hr.attendance'].search([
+                ('employee_id.company_id', '=', company.id),
+                ('check_in', '>=', yesterday),
+                ('check_in', '<', fields.Date.today())
+            ]).mapped('employee_id')
 
-        for emp in absent_employees:
-            work_schedule = [w for w in work_days_data if w['employee_id'] == emp.id]
+            absent_employees = employees - attended_employees
 
-            if not work_schedule:
+            leave_type = self.env['hr.leave.type'].search([
+                ('name', '=', 'Falta'),
+                ('company_id', '=', company.id)
+            ], limit=1)
+
+            if not leave_type:
+                print(f'Tipo de ausência "Falta" não encontrado para a empresa {company.name}.')
                 continue
 
-            first_shift = min(work_schedule, key=lambda x: x['hour_from'])
-            last_shift = max(work_schedule, key=lambda x: x['hour_to'])
+            for emp in absent_employees:
 
-            hour_from_time = first_shift['hour_from']
-            hour_to_time = last_shift['hour_to']
+                work_schedule = self.work_days(emp.resource_calendar_id, day_ofweek=day_of_week)
 
-            date_from_maputo = datetime.combine(yesterday, hour_from_time)
-            date_to_maputo = datetime.combine(yesterday, hour_to_time)
+                if not work_schedule:
+                    continue
 
-            date_from_maputo = maputo_tz.localize(date_from_maputo)
-            date_to_maputo = maputo_tz.localize(date_to_maputo)
+                first_shift = min(work_schedule, key=lambda x: x['hour_from'])
+                last_shift = max(work_schedule, key=lambda x: x['hour_to'])
 
-            date_from_utc = date_from_maputo.astimezone(utc_tz).replace(tzinfo=None)
-            date_to_utc = date_to_maputo.astimezone(utc_tz).replace(tzinfo=None)
+                hour_from_time = first_shift['hour_from']
+                hour_to_time = last_shift['hour_to']
 
-            self.env['hr.leave'].create({
-                'holiday_status_id': leave_type.id,
-                'employee_id': emp.id,
-                'date_from': date_from_utc,
-                'date_to': date_to_utc,
-                'request_date_from': yesterday,
-                'request_date_to': yesterday,
-                'state': 'confirm',
-                'number_of_days': 1,
-                'duration_display': 1,
-            })
+                date_from_maputo = datetime.combine(yesterday, hour_from_time)
+                date_to_maputo = datetime.combine(yesterday, hour_to_time)
 
-        return {'success': f'{len(absent_employees)} funcionários ausentes foram lançados no Time Off.'}
+                date_from_maputo = maputo_tz.localize(date_from_maputo)
+                date_to_maputo = maputo_tz.localize(date_to_maputo)
+
+                date_from_utc = date_from_maputo.astimezone(utc_tz).replace(tzinfo=None)
+                date_to_utc = date_to_maputo.astimezone(utc_tz).replace(tzinfo=None)
+
+                self.env['hr.leave'].create({
+                    'holiday_status_id': leave_type.id,
+                    'employee_id': emp.id,
+                    'date_from': date_from_utc,
+                    'date_to': date_to_utc,
+                    'request_date_from': yesterday,
+                    'request_date_to': yesterday,
+                    'state': 'confirm',
+                    'number_of_days': 1,
+                    'duration_display': 1,
+                })
+
+        return {'success': 'Faltas registradas para todas as empresas.'}
 
     @api.model
-    def work_days(self, day_of_week):
-        records = self.env['hr.employee'].sudo().search([])
+    def work_days(self, resource_calendar, day_ofweek):
+        """
+        Retorna os horários de trabalho de um funcionário para um determinado dia da semana.
+        """
+        if not resource_calendar:
+            return []
 
-        info_employees = []
-        for employee in records:
-            attendances = employee.resource_calendar_id.attendance_ids.filtered(
-                lambda a: int(a.dayofweek) == day_of_week
-            )
+        attendances = resource_calendar.attendance_ids.filtered(
+            lambda a: int(a.dayofweek) == day_ofweek
+        )
 
-            if not attendances:
-                continue
+        work_schedule = []
+        for attendance in attendances:
+            try:
+                hour_from = datetime.strptime(f"{int(attendance.hour_from):02d}:00", "%H:%M").time()
+                hour_to = datetime.strptime(f"{int(attendance.hour_to):02d}:00", "%H:%M").time()
 
-            for attendance in attendances:
-                try:
-                    hour_from = datetime.strptime(f"{int(attendance.hour_from):02d}:00", "%H:%M").time()
-                    hour_to = datetime.strptime(f"{int(attendance.hour_to):02d}:00", "%H:%M").time()
+                work_schedule.append({
+                    'hour_from': hour_from,
+                    'hour_to': hour_to,
+                })
+            except ValueError as e:
+                raise ValueError(f"Erro ao processar horários: {e}")
 
-                    info_employees.append({
-                        'employee_id': employee.id,
-                        'hour_from': hour_from,
-                        'hour_to': hour_to,
-                    })
-                except ValueError as e:
-                    raise ValueError(f"Erro ao processar horários para {employee.name}: {e}")
-
-        return info_employees
+        return work_schedule

@@ -1,4 +1,5 @@
 import base64
+from functools import wraps
 
 from odoo import http
 from odoo.http import Response
@@ -13,6 +14,33 @@ from odoo.addons.authmodel.controllers.decorators.token_required import token_re
 
 
 class CheckIn(http.Controller):
+
+    def coach_required(func):
+        @wraps(func)
+        def wrapper(self, **kw):
+            data = request.jsonrequest
+
+            if not data:
+                return {'error': 'A requisição precisa conter dados.'}
+
+            coach_id = data.get('employee_id')
+            if not coach_id:
+                return {'error': 'O campo "employee_id" é obrigatório no corpo da requisição.'}
+
+            Employee = request.env['hr.employee'].sudo()
+            coach = Employee.browse(int(coach_id))
+
+            if not coach:
+                return {'error': 'Funcionário não encontrado.'}
+
+            coached_employees = Employee.search([('coach_id', '=', coach.id)])
+            if not coached_employees:
+                return {'error': 'Este funcionário não é um coach ou não tem funcionários associados.'}
+
+            kw['coached_employee_ids'] = coached_employees.ids
+            return func(self, **kw)
+
+        return wrapper
 
     @http.route('/monitoring/check_in', auth='none', cors='*', csrf=False)
     def check_in(self, **kw):
@@ -67,6 +95,7 @@ class CheckIn(http.Controller):
 
     @token_required
     @http.route('/api/monitoring/presents', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @coach_required
     def presentes(self, **kw):
         try:
             data = request.jsonrequest
@@ -85,6 +114,7 @@ class CheckIn(http.Controller):
             start_date = data.get('start_date')
             end_date = data.get('end_date')
             address_id = data.get('address_id')
+            by_name = data.get('by_name')
             page = int(data.get('page', 1))
             limit = int(data.get('limit', 10))
 
@@ -111,27 +141,31 @@ class CheckIn(http.Controller):
             if start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            # Filtro para employees com base no company_id
-            domain = [('company_id', '=', int(company_id))]
+            coached_employee_ids = kw.get('coached_employee_ids', [])
+            domain = [
+                ('company_id', '=', int(company_id)),
+                ('id', 'in', coached_employee_ids)
+            ]
+
+            if by_name:
+                domain.append(('name', 'ilike', by_name))
+
             employees = request.env['hr.employee'].sudo().search(domain)
             total_employees = len(employees)
 
             records = []
             presentes = 0
 
-            # Define o fuso horário correto
             tz_maputo = pytz.timezone('Africa/Maputo')
             tz_utc = pytz.utc
 
             for employee in employees:
-                # Filtro para attendances com base no employee_id e datas
                 attendance_domain = [
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', start_date),
                     ('check_in', '<=', end_date)
                 ]
 
-                # Adiciona o filtro opcional para address_id, se fornecido
                 if address_id:
                     attendance_domain.append(('address_id', '=', int(address_id)))
 
@@ -177,6 +211,7 @@ class CheckIn(http.Controller):
 
     @token_required
     @http.route('/api/monitoring/ausentes', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @coach_required
     def ausentes(self, **kw):
         """
         Processes and retrieves information about absent employees with pagination.
@@ -197,6 +232,7 @@ class CheckIn(http.Controller):
 
             start_date = data.get('start_date')
             end_date = data.get('end_date')
+            by_name = data.get('by_name')  # Novo filtro opcional por nome
 
             tz_maputo = pytz.timezone('Africa/Maputo')
             tz_utc = pytz.utc
@@ -206,17 +242,30 @@ class CheckIn(http.Controller):
                     start_date = tz_maputo.localize(datetime.strptime(start_date, '%Y-%m-%d')).astimezone(tz_utc)
                 except ValueError:
                     return {'error': 'O campo "start_date" deve estar no formato "YYYY-MM-DD".'}
+
             if end_date:
                 try:
-                    end_date = tz_maputo.localize(datetime.strptime(end_date, '%Y-%m-%d')).astimezone(
-                        tz_utc) + timedelta(days=1, seconds=-1)
+                    end_date = tz_maputo.localize(datetime.strptime(end_date, '%Y-%m-%d')).astimezone(tz_utc)
+                    # Ajuste: Se start_date e end_date são no mesmo dia, considerar até 23:59:59
+                    if start_date == end_date:
+                        end_date = end_date + timedelta(hours=23, minutes=59, seconds=59)
                 except ValueError:
                     return {'error': 'O campo "end_date" deve estar no formato "YYYY-MM-DD".'}
 
             if start_date and end_date and start_date > end_date:
                 return {'error': 'A data inicial não pode ser posterior à data final.'}
 
-            employees = request.env['hr.employee'].sudo().search([('company_id', '=', int(company_id))])
+            coached_employee_ids = kw.get('coached_employee_ids', [])
+            domain = [
+                ('company_id', '=', int(company_id)),
+                ('id', 'in', coached_employee_ids)
+            ]
+
+            # Adiciona o filtro por nome, se fornecido
+            if by_name:
+                domain.append(('name', 'ilike', by_name))
+
+            employees = request.env['hr.employee'].sudo().search(domain)
             total_employees = len(employees)
 
             records = []
@@ -230,7 +279,7 @@ class CheckIn(http.Controller):
                 attendances = request.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', start_date) if start_date else (),
-                    ('check_in', '<', end_date) if end_date else ()
+                    ('check_in', '<=', end_date) if end_date else ()
                 ])
 
                 if not attendances:
@@ -257,7 +306,9 @@ class CheckIn(http.Controller):
         except Exception as e:
             return {'error': str(e)}
 
+    @token_required
     @http.route('/api/monitoring/absentens', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @coach_required
     def absentens(self, **kw):
         data = request.jsonrequest
 
@@ -266,15 +317,11 @@ class CheckIn(http.Controller):
 
         company_id = data.get('company_id')
         if not company_id:
-            return werkzeug.wrappers.Response(
-                json.dumps({'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}),
-                headers=[('Content-Type', 'application/json')],
-                status=400
-            )
+            return {'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}
 
         start_date = data.get('start_date')
         end_date = data.get('end_date')
-
+        by_name = data.get('by_name')
 
         page = int(data.get('page', 1))
         limit = int(data.get('limit', 5))
@@ -287,8 +334,8 @@ class CheckIn(http.Controller):
             if start_date:
                 start_date = tz_maputo.localize(datetime.strptime(start_date, '%Y-%m-%d')).astimezone(tz_utc)
             if end_date:
-                end_date = tz_maputo.localize(datetime.strptime(end_date, '%Y-%m-%d')).astimezone(
-                    tz_utc) + timedelta(days=1, seconds=-1)
+                end_date = tz_maputo.localize(datetime.strptime(end_date, '%Y-%m-%d')).astimezone(tz_utc) + timedelta(
+                    days=1, seconds=-1)
         except ValueError:
             return {'error': 'As datas devem estar no formato "YYYY-MM-DD".'}
 
@@ -296,10 +343,16 @@ class CheckIn(http.Controller):
             return {'error': 'A data inicial não pode ser posterior à data final.'}
 
         Leave = request.env['hr.leave'].sudo()
+
+        coached_employee_ids = kw.get('coached_employee_ids', [])
         domain = [
             ('state', 'in', ['confirm', 'refuse', 'validate']),
-            ('employee_id.company_id', '=', int(company_id))  # Filtra diretamente pelo company_id
+            ('employee_id.company_id', '=', int(company_id)),
+            ('employee_id', 'in', coached_employee_ids)
         ]
+
+        if by_name:
+            domain.append(('employee_id.name', 'ilike', by_name))
 
         if start_date:
             domain.append(('date_from', '>=', start_date))
@@ -314,9 +367,9 @@ class CheckIn(http.Controller):
             'validate': 'Approved'
         }
 
-        # Aplica a paginação
+        # Busca as ausências com paginação
         leaves = Leave.search(domain, offset=offset, limit=limit)
-        total_leaves = Leave.search_count(domain)  # Conta o total de registros sem paginação
+        total_leaves = Leave.search_count(domain)
 
         result = []
         for leave in leaves:
@@ -326,7 +379,7 @@ class CheckIn(http.Controller):
                 'date_from': leave.date_from.strftime('%Y-%m-%d %H:%M:%S'),
                 'date_to': leave.date_to.strftime('%Y-%m-%d %H:%M:%S'),
                 'leave_type': leave.holiday_status_id.name,
-                'state': state_mapping.get(leave.state, leave.state)
+                'state': state_mapping.get(leave.state, leave.state),
             })
 
         return {
@@ -335,7 +388,7 @@ class CheckIn(http.Controller):
                 'page': page,
                 'limit': limit,
                 'total_records': total_leaves,
-                'total_pages': (total_leaves + limit - 1) // limit  # Calcula o número total de páginas
+                'total_pages': (total_leaves + limit - 1) // limit
             }
         }
 
@@ -769,28 +822,28 @@ class CheckIn(http.Controller):
         return overtime_info
 
     @http.route('/api/employees_by_company', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @coach_required
     def get_employees_by_company(self, **kw):
+        """
+        Retorna a contagem de funcionários gerenciados pelo coach em uma empresa específica.
+        """
         try:
             data = request.jsonrequest
             company_id = data.get('company_id')
 
             if not company_id:
-                return werkzeug.wrappers.Response(
-                    json.dumps({'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}),
-                    headers=[('Content-Type', 'application/json')],
-                    status=400
-                )
+                return {'error': 'O campo "company_id" é obrigatório no corpo da requisição.'}
 
-            employees_count = request.env['hr.employee'].sudo().search_count([('company_id', '=', int(company_id))])
+            coached_employee_ids = kw.get('coached_employee_ids', [])
+            employees_count = request.env['hr.employee'].sudo().search_count([
+                ('company_id', '=', int(company_id)),
+                ('id', 'in', coached_employee_ids)
+            ])
 
             return {'employees_count': employees_count}
 
         except Exception as e:
-            return werkzeug.wrappers.Response(
-                json.dumps({'error': str(e)}),
-                headers=[('Content-Type', 'application/json')],
-                status=500
-            )
+            return {'error': str(e)}
 
     @http.route('/api/monitoring/monitoring', auth='none', type="json", cors='*', csrf=False, methods=['POST'])
     def daily_overtime_check(self, **kw):
@@ -894,68 +947,62 @@ class CheckIn(http.Controller):
 
         return overtime_info
 
-    @http.route("/api/all/employees", auth='none', methods=['GET'], csrf=False)
+    @http.route("/api/all/employees", auth='public', type="json", methods=['POST'], csrf=False)
+    @coach_required
     def all_employees(self, **kwargs):
+        data = request.jsonrequest
 
-        company_id = kwargs.get('company_id')
+        company_id = data.get('company_id')
         if not company_id:
-            return Response(
-                json.dumps({'error': 'O parâmetro "id" (company_id) é obrigatório.'}),
-                content_type='application/json',
-                status=400
-            )
+            return {'error': 'O parâmetro "id" (company_id) é obrigatório.'}
 
         try:
             company_id = int(company_id)
         except ValueError:
-            return Response(
-                json.dumps({'error': 'O parâmetro "id" (company_id) deve ser um número inteiro válido.'}),
-                content_type='application/json',
-                status=400
-            )
+            return {'error': 'O parâmetro "id" (company_id) deve ser um número inteiro válido.'}
 
-        domain = [('company_id', '=', company_id)]
+        coached_employee_ids = kwargs.get('coached_employee_ids', [])
+        domain = [
+            ('company_id', '=', company_id),
+            ('id', 'in', coached_employee_ids)
+        ]
 
         if 'employee_id' in kwargs:
             try:
                 employee_id = int(kwargs['employee_id'])
                 domain.append(('id', '=', employee_id))
             except ValueError:
-                return Response(
-                    json.dumps({'error': 'O parâmetro "employee_id" deve ser um número inteiro válido.'}),
-                    content_type='application/json',
-                    status=400
-                )
+                return {'error': 'O parâmetro "employee_id" deve ser um número inteiro válido.'}
 
-        if 'name' in kwargs:
-            domain.append(('name', 'ilike', kwargs['name']))
+        if 'name' in data:
+            domain.append(('name', 'ilike', data['name']))
 
         if 'x_ativo' in kwargs:
-            x_ativo = kwargs['x_ativo'].lower() in ['true', '1', 't']
+            x_ativo = data['x_ativo'].lower() in ['true', '1', 't']
             domain.append(('x_ativo', '=', x_ativo))
 
         try:
-            limit = int(kwargs.get('limit', 10))
-            page = int(kwargs.get('page', 1))
+            limit = int(data.get('limit', 10))
+            page = int(data.get('page', 1))
         except ValueError:
-            return Response(
-                json.dumps({'error': 'Os parâmetros "limit" e "page" devem ser números inteiros válidos.'}),
-                content_type='application/json',
-                status=400
-            )
+            return {'error': 'Os parâmetros "limit" e "page" devem ser números inteiros válidos.'}
 
         offset = (page - 1) * limit
 
+
         employees = request.env['hr.employee'].sudo().search(domain, offset=offset, limit=limit)
+
 
         total_count = request.env['hr.employee'].sudo().search_count(domain)
 
         if not employees:
-            return Response(
-                json.dumps({'error': 'Nenhum funcionário encontrado para os critérios especificados.'}),
-                content_type='application/json',
-                status=404
-            )
+            if offset >= total_count:
+                employees = []
+
+        if not employees:
+            return {'data': [],
+                    'pagination': {'total_records': total_count, 'total_pages': (total_count + limit - 1) // limit,
+                                   'current_page': page, 'records_per_page': limit}}
 
         data_info = [
             {
@@ -977,14 +1024,14 @@ class CheckIn(http.Controller):
             }
         }
 
-        return Response(
-            json.dumps(response_data),
-            content_type='application/json',
-            status=200
-        )
+        return response_data
 
     @http.route('/api/employees', type='json', auth='none', methods=['PUT'], csrf=False)
-    def update_employee_notifications(self):
+    @coach_required
+    def update_employee_notifications(self, **kw):
+        """
+        Atualiza o campo x_ativo dos funcionários gerenciados pelo coach.
+        """
         data = request.jsonrequest
         employee_ids = data.get('employee_ids', [])
         x_ativo = data.get('is_active')
@@ -996,11 +1043,15 @@ class CheckIn(http.Controller):
         if not isinstance(x_ativo, bool):
             return {'status': 'error', 'message': 'O valor de "x_ativo" deve ser um booleano.', 'data': data}
 
-        employees = request.env['hr.employee'].sudo().browse(employee_ids)
+        coached_employee_ids = kw.get('coached_employee_ids', [])
+        employees = request.env['hr.employee'].sudo().browse(employee_ids).filtered(
+            lambda emp: emp.id in coached_employee_ids
+        )
 
         non_existing_employees = [emp_id for emp_id in employee_ids if emp_id not in employees.ids]
         if non_existing_employees:
-            return {'status': 'error', 'message': f'Funcionários com IDs {non_existing_employees} não encontrados.',
+            return {'status': 'error',
+                    'message': f'Funcionários com IDs {non_existing_employees} não encontrados ou não são gerenciados por você.',
                     'data': data}
 
         employees.write({'x_ativo': x_ativo})
@@ -1008,7 +1059,11 @@ class CheckIn(http.Controller):
         return {'status': 'success', 'message': 'Notificação em tempo real atualizada com sucesso.', 'data': data}
 
     @http.route('/api/employees_avtive', type='json', auth='none', methods=['POST'], csrf=False)
-    def employees_avtive(self):
+    @coach_required
+    def employees_active(self, **kw):
+        """
+        Retorna uma lista de funcionários ativos (x_ativo=True) gerenciados pelo coach.
+        """
         data = request.jsonrequest
 
         if not data or 'company_id' not in data:
@@ -1016,9 +1071,11 @@ class CheckIn(http.Controller):
 
         company_id = data['company_id']
 
+        coached_employee_ids = kw.get('coached_employee_ids', [])
         employees = request.env['hr.employee'].sudo().search([
             ('company_id', '=', company_id),
-            ('x_ativo', '!=', False)
+            ('x_ativo', '!=', False),
+            ('id', 'in', coached_employee_ids)
         ])
 
         if not employees:
@@ -1110,33 +1167,26 @@ class CheckIn(http.Controller):
         if not employee:
             return {"error": "Employee not found"}
 
-        current_date = datetime.now().date()
-        num_days = monthrange(year, month)[1]
-
-        all_days = [
-            datetime(year, month, day).date()
-            for day in range(1, num_days + 1)
-            if datetime(year, month, day).date() <= current_date
-        ]
-
-        attendance_records = request.env['hr.attendance'].sudo().search([
+        leave_records = request.env['hr.leave'].sudo().search([
             ('employee_id', '=', employee_id),
-            ('check_in', '>=', datetime(year, month, 1)),
-            ('check_in', '<', datetime(year, month, num_days) + timedelta(days=1))
+            ('date_from', '>=', datetime(year, month, 1)),
+            ('date_from', '<', datetime(year, month + 1, 1))
         ])
 
-        check_in_days = {record.check_in.date() for record in attendance_records if record.check_in}
+        # Criando a lista com as datas e descrições das faltas
+        missed_days_info = [
+            {
+                'date': leave.date_from.date(),
+                'description': leave.name
+            }
+            for leave in leave_records
+        ]
 
-        missed_days = [day.isoformat() for day in all_days if day not in check_in_days]
-
-        response = {
-            'id': employee.id,
-            'name': employee.name,
-            'job_title': employee.job_id.name,
-            'missed_days': missed_days
+        return {
+            'employee_id': employee_id,
+            'month': month,
+            'missed_days_info': missed_days_info
         }
-
-        return response
 
     @http.route('/api/data/employee/', type='http', auth='none', cors='*', csrf=False, methods=['POST'])
     def employee_data(self, **kw):
@@ -1172,7 +1222,7 @@ class CheckIn(http.Controller):
         return request.make_response('{"error": "No image found for this employee"}',
                                      headers=[('Content-Type', 'application/json')])
 
-    @http.route('/notification/employee/', auth='none', cors='*', csrf=False, methods=['GET'])
+    @http.route('/notification/employeess/', auth='none', cors='*', csrf=False, methods=['GET'])
     def employee_notification(self, **kw):
         records = request.env['attendance.notification'].sudo().search([])
         info_records = []
@@ -1190,6 +1240,33 @@ class CheckIn(http.Controller):
             })
 
         return werkzeug.wrappers.Response(json.dumps(info_records), headers=[('Content-Type', 'application/json')])
+
+    @http.route('/notification/employee/', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @coach_required
+    def employee_notification(self, **kw):
+        """
+        Retorna as notificações de presença dos funcionários gerenciados pelo coach.
+        """
+        coached_employee_ids = kw.get('coached_employee_ids', [])
+
+        records = request.env['attendance.notification'].sudo().search([
+            ('employee_id', 'in', coached_employee_ids)
+        ])
+
+        info_records = []
+        for record in records:
+            check_in = record.check_in.strftime('%Y-%m-%d') if record.check_in else None
+            check_out = record.check_out.strftime('%Y-%m-%d') if record.check_out else None
+
+            info_records.append({
+                'employee_id': record.employee_id.id,
+                'name': record.employee_id.name,
+                'check_in': check_in,
+                'check_out': check_out,
+                'is_read': record.is_read,
+            })
+
+        return info_records
 
     @http.route('/api/notification/read', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
     def set_notification_read(self, **kw):
@@ -1232,18 +1309,28 @@ class CheckIn(http.Controller):
             ]
         )
 
-    @http.route('/api/custom_response/', type='http', auth='public', methods=['GET'])
+    @http.route('/api/custom_response/', type='json', auth='public', methods=['POST'])
+    @coach_required
     def custom_response(self, **kwargs):
+        """
+        Retorna as notificações de um funcionário gerenciado pelo coach.
+        """
+        data = request.jsonrequest
 
-        employee_id = kwargs.get('id')
+        employee_id = data.get('id')
+        if not employee_id:
+            return {'error': 'O campo "id" é obrigatório.'}
+
+        # Filtra os funcionários gerenciados pelo coach
+        coached_employee_ids = kwargs.get('coached_employee_ids', [])
+        if int(employee_id) not in coached_employee_ids:
+            return {
+                'error': f'Você não tem permissão para acessar as notificações do funcionário com ID {employee_id}.'}
+
         employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
-
-        print(kwargs)
 
         if not employee:
             return {'error': f'Funcionário com ID {employee_id} não encontrado.'}
-
-        response = []
 
         notifications = request.env['attendance.notification'].sudo().search([
             ('employee_id', '=', employee.id)
@@ -1259,8 +1346,7 @@ class CheckIn(http.Controller):
                 'check_out': notification.check_out.strftime('%Y-%m-%d') if notification.check_out else 'N/A',
             })
 
-        return werkzeug.wrappers.Response(json.dumps(notifications_info), headers={'Content-Type': 'application/json'},
-                                          status=200)
+        return notifications_info
 
     @http.route('/api/week/', type='http', auth='public', methods=['GET'])
     def week(self, **kwargs):
@@ -1423,13 +1509,14 @@ class CheckIn(http.Controller):
 
         for record in record:
             info.append({
-                'id': record.id,
+                'id': record.address_id.id,
                 'address_id': record.address_id.name,
             })
 
         return werkzeug.wrappers.Response(json.dumps(info), headers={'Content-Type': 'application/json'}, status=200)
 
     @http.route('/api/report/overtime', type='json', auth='none', cors='*', csrf=False, methods=['POST'])
+    @coach_required
     def overtime(self, **kw):
         try:
             data = request.jsonrequest
@@ -1456,7 +1543,13 @@ class CheckIn(http.Controller):
                 if end_date.month > current_month:
                     return {'error': 'You cannot request a report for future months in the current year'}
 
-            employees = request.env['hr.employee'].sudo().search([('company_id', '=', company_id)])
+            coached_employee_ids = kw.get('coached_employee_ids', [])
+            domain = [
+                ('company_id', '=', company_id),
+                ('id', 'in', coached_employee_ids)
+            ]
+
+            employees = request.env['hr.employee'].sudo().search(domain)
             total_employees = len(employees)
 
             attendances = request.env['hr.attendance'].sudo().search([
@@ -1522,10 +1615,22 @@ class CheckIn(http.Controller):
 
     @http.route('/api/monitoring/employee/checkin_summary', auth='public', type='json', methods=['POST'])
     def employee_report(self, **kwargs):
+        """
+        Retorna um resumo dos check-ins e faltas de um funcionário em um determinado mês e ano.
+        Verifica se o dia da falta é um dia trabalhado antes de considerá-lo como falta.
+        """
         data = request.jsonrequest
         employee_id = data.get('employee_id')
         month = data.get('month')
         year = data.get('year')
+
+        state_mapping = {
+            'draft': 'To Submit',
+            'confirm': 'To Approve',
+            'refuse': 'Refused',
+            'validate1': 'Second Approval',
+            'validate': 'Approved'
+        }
 
         if not employee_id or not month or not year:
             return {'error': 'Employee ID, month, and year are required'}
@@ -1550,23 +1655,68 @@ class CheckIn(http.Controller):
 
         total_days_until_now = (end_date - start_date).days + 1
 
-        attendances = request.env['hr.attendance'].sudo().search([
+        employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
+        if not employee:
+            return {"error": "Employee not found"}
+
+        resource_calendar = employee.resource_calendar_id
+        if not resource_calendar:
+            return {"error": "Calendário de trabalho não encontrado para o funcionário."}
+
+        work_days = set()
+        for attendance in resource_calendar.attendance_ids:
+            work_days.add(int(attendance.dayofweek))
+
+        leave_records = request.env['hr.leave'].sudo().search([
             ('employee_id', '=', employee_id),
-            ('check_in', '>=', start_date.strftime("%Y-%m-%d 00:00:00")),
-            ('check_in', '<=', end_date.strftime("%Y-%m-%d 23:59:59")),
+            ('date_from', '>=', start_date),
+            ('date_from', '<=', end_date)
         ])
 
-        worked_days = len(set(attendances.mapped('check_in') or []))
-        absent_days = total_days_until_now - worked_days
+        missed_days_info = []
+        for leave in leave_records:
+            leave_date = leave.date_from.date()
+            day_of_week = leave_date.weekday()
+            if day_of_week in work_days:
+                missed_days_info.append({
+                    'date': leave_date.strftime('%Y-%m-%d'),
+                    'description': leave.sudo().private_name,
+                    'state': state_mapping.get(leave.state, leave.state),
+                })
+
+        attendance_records = request.env['hr.attendance'].sudo().search([
+            ('employee_id', '=', employee_id),
+            ('check_in', '>=', start_date),
+            ('check_in', '<=', end_date)
+        ])
+
+        attendance_info = [
+            {
+                'date': attendance.check_in.date().strftime('%Y-%m-%d'),
+                'check_in': attendance.check_in.strftime('%Y-%m-%d %H:%M:%S'),
+                'check_out': attendance.check_out.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_out else None,
+                'address_id': attendance.address_id.name,
+            }
+            for attendance in attendance_records
+        ]
+
+        present_days = set()
+        for attendance in attendance_records:
+            present_days.add(attendance.check_in.date())
+
+        total_present_days = len(present_days)
+        total_missed_days = len(missed_days_info)
 
         return {
             'employee_id': employee_id,
+            'employee_name': employee.name,
             'month': month,
             'year': year,
-            'total_days_in_month': last_day_of_month.day,
             'total_days_until_now': total_days_until_now,
-            'worked_days': worked_days,
-            'absent_days': absent_days,
+            'total_present_days': total_present_days,
+            'total_missed_days': total_missed_days,
+            'missed_days_info': missed_days_info,
+            'attendance_info': attendance_info
         }
 
     @http.route('/api/report/', auth='public', type='json', methods=['POST'])
@@ -1664,3 +1814,133 @@ class CheckIn(http.Controller):
                 'check_out': i.check_out.strftime("%Y-%m-%d ") if i.check_out else "",
             })
         return werkzeug.wrappers.Response(json.dumps(info), headers={'Content-Type': 'application/json'}, status=200)
+
+    @http.route('/monitoring/overview', auth='none', cors='*', csrf=False)
+    def overview(self, **kw):
+        table = request.env['hr.employee'].sudo().search([('id', '=', '22')], limit=1)
+        info = []
+
+        for employee in table:
+            employee_info = {
+                'id': employee.id,
+                'name': employee.name,
+                'attendance_ids': [],
+                'resource_calendar_id': [],
+            }
+
+            for attendance in employee.attendance_ids:
+                employee_info['attendance_ids'].append({
+                    'check_in': attendance.check_in.strftime('%H:%M') if attendance.check_in else '',
+                })
+
+            if employee.resource_calendar_id:
+                resource_calendar = employee.resource_calendar_id
+                for attendance in resource_calendar.attendance_ids:
+                    hours, minutes = divmod(int(attendance.hour_from * 60), 60)
+                    formatted_hour = f"{hours:02}:{minutes:02}"
+
+                    employee_info['resource_calendar_id'].append({
+                        'id': attendance.id,
+                        'name': attendance.name,
+                        'hour_from': formatted_hour,
+                    })
+
+            info.append(employee_info)
+
+        return werkzeug.wrappers.Response(json.dumps(info), headers=[('Content-Type', 'application/json')], status=200)
+
+    @http.route('/api/employees/by_coach', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    def employees_by_coach(self, **kw):
+        data = request.jsonrequest
+
+        if not data:
+            return {'error': 'A requisição precisa conter dados.'}
+
+        coach_id = data.get('employee_id')
+        if not coach_id:
+            return {'error': 'O campo "employee_id" é obrigatório no corpo da requisição.'}
+
+        Employee = request.env['hr.employee'].sudo()
+        employees = Employee.search([('coach_id', '=', int(coach_id))])
+
+        result = []
+        for employee in employees:
+            result.append({
+                'employee_id': employee.id,
+                'employee_name': employee.name,
+                'job_position': employee.job_id.name,
+                'department': employee.department_id.name,
+                'work_email': employee.work_email,
+                'work_phone': employee.work_phone
+            })
+
+        return {'coached_employees': result}
+
+    @http.route('/api/attendance/last_records', auth='none', type='json', cors='*', csrf=False, methods=['POST'])
+    @coach_required
+    def last_attendance_records(self, **kw):
+        """
+        Retorna os últimos registros de check-in e check-out dos funcionários gerenciados pelo coach, considerando apenas os registros de hoje.
+        """
+        data = request.jsonrequest
+
+        if not data:
+            return {'error': 'A requisição precisa conter dados.'}
+
+        company_id = data.get('company_id')
+        if not company_id:
+            return {
+                'error': 'O campo "company_id" é obrigatório no corpo da requisição.'
+            }
+
+        limit = int(data.get('limit', 10))
+        include_check_in = data.get('include_check_in', True)
+        include_check_out = data.get('include_check_out', True)
+
+        coached_employee_ids = kw.get('coached_employee_ids', [])
+        domain = [
+            ('employee_id.company_id', '=', int(company_id)),
+            ('employee_id', 'in', coached_employee_ids)
+        ]
+
+        today = datetime.now(pytz.utc).date()
+
+        last_check_in_records = []
+        if include_check_in:
+            check_in_domain = domain + [
+                ('check_in', '>=', datetime.combine(today, datetime.min.time()).astimezone(pytz.utc))]
+            last_check_ins = request.env['hr.attendance'].sudo().search(
+                check_in_domain,
+                order='check_in DESC',
+                limit=limit
+            )
+            for record in last_check_ins:
+                last_check_in_records.append({
+                    'employee_id': record.employee_id.id,
+                    'employee_name': record.employee_id.name,
+                    'check_in': record.check_in.strftime('%Y-%m-%d %H:%M:%S'),
+                    'check_out': record.check_out.strftime('%Y-%m-%d %H:%M:%S') if record.check_out else None
+                })
+
+        last_check_out_records = []
+        if include_check_out:
+            check_out_domain = domain + [
+                ('check_out', '>=', datetime.combine(today, datetime.min.time()).astimezone(pytz.utc))]
+            last_check_outs = request.env['hr.attendance'].sudo().search(
+                check_out_domain,
+                order='check_out DESC',
+                limit=limit
+            )
+            for record in last_check_outs:
+                last_check_out_records.append({
+                    'employee_id': record.employee_id.id,
+                    'employee_name': record.employee_id.name,
+                    'check_in': record.check_in.strftime('%Y-%m-%d %H:%M:%S') if record.check_in else "",
+                    'check_out': record.check_out.strftime('%Y-%m-%d %H:%M:%S')
+                })
+
+        return {
+            'last_check_in_records': last_check_in_records,
+            'last_check_out_records': last_check_out_records
+        }
+

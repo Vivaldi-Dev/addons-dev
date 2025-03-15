@@ -124,7 +124,6 @@ class ZKTecoController(http.Controller):
                             _logger.info(
                                 f"Check Out atualizado na notificação de {employee.name} às {attendance_datetime_utc}")
 
-                            # Enviar notificação via WebSocket para check-out
                             threading.Thread(target=self.send_to_relevant_websockets,
                                              args=(employee.id, employee.x_ativo,
                                                    attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
