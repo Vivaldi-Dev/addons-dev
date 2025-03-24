@@ -102,6 +102,7 @@
                 <field name="employee_id" string="Funcionário"/>
                 <field name="company_id" string="Empresa"/>
                 <field name="date" string="Data" attrs="{'invisible': [('date', '=', False)]}"/>
+
             </tree>
         </field>
     </record>

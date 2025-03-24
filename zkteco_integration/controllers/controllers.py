@@ -1,11 +1,9 @@
 import threading
 import asyncio
-
 import pytz
 import websockets
 from odoo import http
-from odoo.exceptions import UserError
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 from odoo.http import request
 
@@ -50,6 +48,9 @@ class ZKTecoController(http.Controller):
                         _logger.warning(f"Empregado não encontrado para o device_id: {device_id}")
                         continue
 
+                    # Definir notify_ids aqui, para que esteja disponível tanto para Check-in quanto para Check-out
+                    notify_ids = employee.notify_employee_ids.mapped('id')
+
                     try:
                         attendance_datetime = maputo_tz.localize(datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S'))
                         attendance_datetime_utc = attendance_datetime.astimezone(utc_tz).replace(tzinfo=None)
@@ -80,7 +81,7 @@ class ZKTecoController(http.Controller):
                             'address_id': work_area.id,
                         })
 
-                        if employee.x_ativo:
+                        if notify_ids:
                             _logger.info(
                                 f"Criando notificação de Check In para {employee.name} às {attendance_datetime_utc}")
                             request.env['attendance.notification'].sudo().create({
@@ -88,16 +89,15 @@ class ZKTecoController(http.Controller):
                                 'check_in': attendance_datetime_utc,
                             })
 
-                            # Enviar notificação via WebSocket para check-in
                             threading.Thread(target=self.send_to_relevant_websockets,
-                                             args=(employee.id, employee.x_ativo,
+                                             args=(employee.id,
                                                    attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
-                                                   employee.name, 'check-in')).start()
-
-
+                                                   employee.name,
+                                                   'check-in',
+                                                   notify_ids)).start()
                         else:
                             _logger.info(
-                                f"Check In registrado, mas nenhuma notificação criada para {employee.name} porque x_ativo está False.")
+                                f"Check In registrado, mas nenhuma notificação criada para {employee.name} porque não há funcionários a notificar.")
 
                     elif punch_type == '1':  # Check-out
                         _logger.info(f"Registrando Check Out para {employee.name} às {attendance_datetime_utc}")
@@ -125,11 +125,15 @@ class ZKTecoController(http.Controller):
                                 f"Check Out atualizado na notificação de {employee.name} às {attendance_datetime_utc}")
 
                             threading.Thread(target=self.send_to_relevant_websockets,
-                                             args=(employee.id, employee.x_ativo,
+                                             args=(employee.id,
                                                    attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
-                                                   employee.name, 'check-out')).start()
+                                                   employee.name,
+                                                   'check-out',
+                                                   notify_ids)).start()
                         else:
                             _logger.warning(f"Nenhuma notificação de Check In encontrada para {employee.name}.")
+
+                return http.Response("OK", status=200)
 
             return http.Response("OK", status=200)
 
@@ -137,42 +141,37 @@ class ZKTecoController(http.Controller):
             _logger.error(f"Erro inesperado ao processar os dados: {e}")
             return http.Response("Internal Server Error", status=500)
 
-    def send_to_relevant_websockets(self, employee_id, x_ativo, timestamp, employee_name, action):
-        """
-        Função para enviar notificações via WebSocket.
-        :param employee_id: ID do empregado
-        :param x_ativo: Status do empregado (True/False)
-        :param timestamp: Timestamp do evento (check-in ou check-out)
-        :param employee_name: Nome do empregado
-        :param action: Tipo de ação ('check-in' ou 'check-out')
-        """
+    def send_to_relevant_websockets(self, employee_id, timestamp, employee_name, action, notify_employee_ids):
         try:
-            if x_ativo:
-                message_data = {
-                    'employee_id': employee_id,
-                    'attendance_datetime': timestamp,
-                    'status': action,  # 'Check In' ou 'Check Out'
-                    'employee_name': employee_name,
-                }
+            if not notify_employee_ids:
+                print(f"Nenhum funcionário a notificar para {employee_name}. Nenhuma mensagem enviada.")
+                return
 
-                _logger.info(f"Enviando mensagem para o WebSocket: {message_data}")
-                self.send_message_to_websockets(message_data)
-            else:
-                _logger.info(
-                    f"Notificação em tempo real desativada para o empregado {employee_name}. Nenhuma mensagem enviada.")
+            message_data = {
+                'employee_id': employee_id,
+                'attendance_datetime': timestamp,
+                'status': action,
+                'employee_name': employee_name,
+            }
+
+            print(f"🔹 Enviando mensagem para os WebSockets dos funcionários a notificar: {notify_employee_ids}")
+
+            for notify_employee_id in notify_employee_ids:
+                print(f"🔸 Enviando para funcionário {notify_employee_id}")
+                self.send_message_to_websockets(message_data, notify_employee_id)
 
         except Exception as e:
             _logger.error(f"Erro ao enviar mensagem WebSocket: {e}")
 
-    def send_message_to_websockets(self, message_data):
+    def send_message_to_websockets(self, message_data, notify_employee_id):
+        uri = f"ws://localhost:8765/{notify_employee_id}"
+        print(f"📤 Enviando mensagem para WebSocket: {uri} com dados: {message_data}")
 
-        uri = "ws://localhost:8765"
         try:
             asyncio.run(self.send_message(uri, message_data))
         except Exception as e:
-            _logger.error(f"Erro ao enviar mensagem via WebSocket: {e}")
+            print(f"❌ Erro ao enviar mensagem via WebSocket para o funcionário {notify_employee_id}: {e}")
 
     async def send_message(self, uri, message_data):
-
         async with websockets.connect(uri) as websocket:
             await websocket.send(str(message_data))

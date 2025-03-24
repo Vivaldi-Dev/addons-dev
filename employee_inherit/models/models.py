@@ -8,6 +8,13 @@ class Employee(models.Model):
     x_nuit = fields.Char(string='Nuit')
     x_inss = fields.Char(string='INSS')
     x_ativo = fields.Boolean(string='Notificação em Tempo Real', default=False)
+    notify_employee_ids = fields.Many2many(
+        'hr.employee',
+        'employee_notify_rel',
+        'employee_id',
+        'notify_id',
+        string='Funcionários a Notificar'
+    )
 
 
 class HolidaysType(models.Model):

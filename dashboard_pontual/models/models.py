@@ -262,7 +262,7 @@ class DashboardPontual(models.Model):
             if work_day and work_day['employee_id'] == employee.id:
                 expected_time = work_day['hour_from']
 
-                if expected_time:  # Verifica se expected_time não é None
+                if expected_time:
                     expected_datetime = datetime.combine(check_in_local.date(), expected_time)
                     expected_datetime = timezone.localize(expected_datetime)
 

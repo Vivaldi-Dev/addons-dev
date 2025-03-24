@@ -1328,3 +1328,261 @@ class CheckIn(http.Controller):
                 'total_pages': (total_leaves + limit - 1) // limit  # Calcula o número total de páginas
             }
         }
+
+
+
+import threading
+import asyncio
+
+import pytz
+import websockets
+from odoo import http
+from odoo.exceptions import UserError
+from datetime import datetime, timedelta
+import logging
+from odoo.http import request
+from functools import partial
+_logger = logging.getLogger(__name__)
+
+
+class ZKTecoController(http.Controller):
+
+    @http.route('/iclock/cdata', auth='none', methods=['GET', 'POST'], csrf=False)
+    def receive_records(self, **kwargs):
+        try:
+            if request.httprequest.method == 'POST':
+                post_content = request.httprequest.data.decode('utf-8')
+                sn = request.params.get('SN')
+
+                if not sn:
+                    _logger.error("Número de série (SN) não encontrado na solicitação.")
+                    return "Error: Número de série não encontrado"
+
+                _logger.info("Dados recebidos de ZKTeco: %s", post_content)
+
+                machine = request.env['zk.machine'].sudo().search([('name', '=', sn)], limit=1)
+                if not machine:
+                    return "Error: Máquina com SN não encontrada"
+
+                work_area = machine.address_id
+                data_lines = post_content.splitlines()
+
+                maputo_tz = pytz.timezone("Africa/Maputo")
+                utc_tz = pytz.utc
+
+                for line in data_lines:
+                    fields = line.split('\t')
+                    if len(fields) < 10:
+                        _logger.warning(f"Dados incompletos na linha: {line}")
+                        continue
+
+                    device_id, timestamp, punch_type, attendance_type = fields[0], fields[1], fields[2], fields[3]
+                    employee = request.env['hr.employee'].sudo().search([('device_id', '=', device_id)], limit=1)
+
+                    if not employee:
+                        _logger.warning(f"Empregado não encontrado para o device_id: {device_id}")
+                        continue
+
+                    try:
+                        attendance_datetime = maputo_tz.localize(datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S'))
+                        attendance_datetime_utc = attendance_datetime.astimezone(utc_tz).replace(tzinfo=None)
+                    except ValueError as e:
+                        _logger.warning(f"Data e hora inválidas na linha: {line}. Erro: {e}")
+                        continue
+
+                    today_start = attendance_datetime_utc.replace(hour=0, minute=0, second=0)
+                    today_end = attendance_datetime_utc.replace(hour=23, minute=59, second=59)
+
+                    if punch_type == '0':
+                        existing_checkin = request.env['hr.attendance'].sudo().search([
+                            ('employee_id', '=', employee.id),
+                            ('check_in', '>=', today_start),
+                            ('check_in', '<=', today_end)
+                        ], order='check_in asc', limit=1)
+
+                        if existing_checkin:
+                            _logger.info(f"Check-in já registrado para {employee.name} hoje, ignorando novo check-in.")
+                            continue
+
+                        attendance = request.env['hr.attendance'].sudo().create({
+                            'employee_id': employee.id,
+                            'check_in': attendance_datetime_utc,
+                            'punching_time': attendance_datetime_utc,
+                            'punch_type': punch_type,
+                            'attendance_type': attendance_type,
+                            'address_id': work_area.id,
+                        })
+
+                        if employee.x_ativo:
+                            _logger.info(
+                                f"Criando notificação de Check In para {employee.name} às {attendance_datetime_utc}")
+                            request.env['attendance.notification'].sudo().create({
+                                'employee_id': employee.id,
+                                'check_in': attendance_datetime_utc,
+                            })
+
+
+
+                            threading.Thread(
+                                target=partial(self.send_to_relevant_websockets, employee.id, employee.x_ativo,
+                                               attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
+                                               employee.name, 'check-in', employee.coach_id.id)).start()
+
+
+                        else:
+                            _logger.info(
+                                f"Check In registrado, mas nenhuma notificação criada para {employee.name} porque x_ativo está False.")
+
+                    elif punch_type == '1':
+                        _logger.info(f"Registrando Check Out para {employee.name} às {attendance_datetime_utc}")
+
+                        attendance = request.env['hr.attendance'].sudo().search([
+                            ('employee_id', '=', employee.id),
+                            ('check_in', '>=', today_start),
+                            ('check_in', '<=', today_end)
+                        ], order='check_in asc', limit=1)
+
+                        if attendance:
+                            attendance.sudo().write({'check_out': attendance_datetime_utc})
+                            _logger.info(f"Check Out atualizado para {employee.name} às {attendance_datetime_utc}")
+                        else:
+                            _logger.warning(f"Nenhum Check In encontrado para {employee.name}, ignorando Check Out.")
+
+                        notification = request.env['attendance.notification'].sudo().search([
+                            ('employee_id', '=', employee.id),
+                            ('check_out', '=', False)
+                        ], order='check_in desc', limit=1)
+
+                        if notification:
+                            notification.sudo().write({'check_out': attendance_datetime_utc})
+                            _logger.info(
+                                f"Check Out atualizado na notificação de {employee.name} às {attendance_datetime_utc}")
+
+                            threading.Thread(
+                                target=partial(self.send_to_relevant_websockets, employee.id, employee.x_ativo,
+                                               attendance_datetime_utc.strftime('%Y-%m-%d %H:%M:%S'),
+                                               employee.name, 'check-in', employee.coach_id.id)).start()
+                        else:
+                            _logger.warning(f"Nenhuma notificação de Check In encontrada para {employee.name}.")
+
+            return http.Response("OK", status=200)
+
+        except Exception as e:
+            _logger.error(f"Erro inesperado ao processar os dados: {e}")
+            return http.Response("Internal Server Error", status=500)
+
+    def send_to_relevant_websockets(self, employee_id, x_ativo, timestamp, employee_name, action, coach_id):
+        try:
+            if x_ativo:
+                # Aqui você não precisa mais acessar o objeto `request`
+                managers = request.env['hr.employee'].sudo().search([('id', '=', coach_id)])
+
+                for manager in managers:
+                    message_data = {
+                        'manager_id': manager.id,
+                        'employee_id': employee_id,
+                        'attendance_datetime': timestamp,
+                        'status': action,
+                        'employee_name': employee_name,
+                    }
+
+                    _logger.info(f"Enviando mensagem para WebSocket do gestor {manager.name}: {message_data}")
+                    self.send_message_to_websockets(message_data)
+        except Exception as e:
+            _logger.error(f"Erro ao enviar mensagem WebSocket: {e}")
+
+    def send_message_to_websockets(self, message_data):
+
+        uri = "ws://localhost:8765"
+        try:
+            asyncio.run(self.send_message(uri, message_data))
+        except Exception as e:
+            _logger.error(f"Erro ao enviar mensagem via WebSocket: {e}")
+
+    async def send_message(self, uri, message_data):
+
+        async with websockets.connect(uri) as websocket:
+            await websocket.send(str(message_data))
+
+    def coach_Administrator(func):
+        @wraps(func)
+        def wrapper(self, **kw):
+            data = request.jsonrequest
+            if not data:
+                return {'error': 'Nenhum dado fornecido.'}
+
+            employee_id = data.get('employee_id')
+            if not employee_id:
+                return {'error': 'employee_id é obrigatório.'}
+
+            Employee = request.env['hr.employee'].sudo()
+            employee = Employee.browse(int(employee_id))
+            if not employee.exists():
+                return {'error': 'Funcionário não encontrado.'}
+
+            user = employee.user_id
+            if not user:
+                return {'error': 'Nenhum usuário associado a este funcionário.'}
+
+            request.env.cr.commit()
+
+            all_subordinates_ids = employee.child_ids.ids
+
+            coached_employee_ids = Employee.search([('coach_id', '=', employee.id)]).ids
+
+            all_subordinates_ids += coached_employee_ids
+
+            kw['all_subordinates_ids'] = all_subordinates_ids
+            return func(self, **kw)
+
+    def coach_Administrator(func):
+        @wraps(func)
+        def wrapper(self, **kw):
+            data = request.jsonrequest
+            child_ids = []
+            coached_employees_ids = []
+            company_id = None
+            department_id = None
+
+            if data:
+                employee_id = data.get('employee_id')
+                company_id = data.get('company_id')
+                department_id = data.get('department_id')
+
+                if employee_id:
+                    Employee = request.env['hr.employee'].sudo()
+                    employee = Employee.browse(int(employee_id))
+
+                    if employee.exists():
+                        user = employee.user_id
+                        if user:
+                            request.env.cr.commit()
+
+                            domain = []
+                            if company_id:
+                                domain.append(('company_id', '=', int(company_id)))
+                            if department_id:
+                                domain.append(('department_id', '=', int(department_id)))
+
+                            if user.has_group('check_in.group_hr_admin'):
+
+                                child_ids = Employee.search(domain).ids
+                                coached_employees_ids = []
+
+                            elif user.has_group('check_in.group_hr_officer'):
+
+                                child_ids = employee.child_ids.filtered(
+                                    lambda e: e.company_id.id == int(company_id)).ids
+
+
+                                coached_employees_ids = Employee.search([
+                                                                            ('coach_id', 'in', child_ids)
+                                                                        ] + domain).ids
+
+            kw['child_ids'] = child_ids
+            kw['coached_employees_ids'] = coached_employees_ids
+            kw['company_id'] = company_id
+            kw['department_id'] = department_id
+            return func(self, **kw)
+
+        return wrapper

@@ -42,7 +42,7 @@ odoo.define('dashPontual.Dashboard', function (require) {
             this.$el.on('click', '#applyButton', () => {
                 let startDate = $('#startDate').val();
                 let endDate = $('#endDate').val();
-             
+
                 this.getPontualData(startDate, endDate);
             });
         },
@@ -62,7 +62,6 @@ odoo.define('dashPontual.Dashboard', function (require) {
             let currentDate = moment().format("YYYY-MM-DD");
             startDate = startDate || currentDate;
             endDate = endDate || currentDate;
-
 
 
             return this.do_action({
@@ -90,7 +89,9 @@ odoo.define('dashPontual.Dashboard', function (require) {
             startDate = startDate || currentDate;
             endDate = endDate || currentDate;
 
+            let companyId = session.user_context.allowed_company_ids[0];
 
+            console.log("Empresa ID selecionada:", companyId);
 
             return this.do_action({
                 name: _t('Attendances'),
@@ -100,7 +101,8 @@ odoo.define('dashPontual.Dashboard', function (require) {
                 target: 'current',
                 domain: [
                     ['date', '>=', startDate],
-                    ['date', '<=', endDate]
+                    ['date', '<=', endDate],
+                    ['company_id', '=', companyId]
                 ],
                 context: {
                     'start_date': startDate,
@@ -108,6 +110,7 @@ odoo.define('dashPontual.Dashboard', function (require) {
                 }
             });
         },
+
 
         view_atraos: function (ev) {
             ev.preventDefault();
@@ -118,7 +121,6 @@ odoo.define('dashPontual.Dashboard', function (require) {
             let currentDate = moment().format("YYYY-MM-DD");
             startDate = startDate || currentDate;
             endDate = endDate || currentDate;
-
 
 
             return this.do_action({

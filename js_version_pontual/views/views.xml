@@ -1,0 +1,49 @@
+<odoo>
+
+    <record id="js_version_pontual" model="ir.ui.view">
+        <field name="name">js_version_pontual.form</field>
+        <field name="model">js_version_pontual.js_version_pontual</field>
+        <field name="arch" type="xml">
+            <form string="Funcionários Ausentes">
+                <sheet>
+                    <group>
+                        <field name="version"/>
+                        <field name="create_date"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record model="ir.ui.view" id="js_version_pontual.list">
+        <field name="name">js_version_pontual.form</field>
+        <field name="model">js_version_pontual.js_version_pontual</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="version"/>
+                <field name="create_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_versao" model="ir.actions.act_window">
+        <field name="name">Pontual</field>
+        <field name="res_model">js_version_pontual.js_version_pontual</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+               No data added yet
+            </p>
+        </field>
+    </record>
+
+
+    <menuitem id="action_version"
+              name="Pontual"
+              parent="dashboard_pontual.pontual"
+              sequence="2"
+              action="action_versao"
+    />
+
+
+</odoo>

@@ -67,9 +67,8 @@ class Authmodel(http.Controller):
             "job_position": employee.job_id.name if employee and employee.job_id else "Sem cargo definido",
         }
 
-        # Obter as empresas permitidas (allowed_company_ids) do usuário
         user = request.env.user
-        allowed_company_ids = user.company_ids.ids  # IDs das empresas permitidas
+        allowed_company_ids = user.company_ids.ids
         allowed_companies = [
             {
                 "id": company.id,
