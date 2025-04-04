@@ -155,13 +155,24 @@ odoo.define('dashPontual.Dashboard', function (require) {
             let doughnutStartDate = isInitialLoad ? currentDate : (startDate || currentDate);
             let doughnutEndDate = isInitialLoad ? currentDate : (endDate || currentDate);
 
+            console.log(doughnutStartDate);
+            console.log(doughnutEndDate);
+
             let {startOfWeek, endOfWeek} = this.getCurrentWeek();
+
+            console.log("StartOfWeek:", startOfWeek);
+            console.log("EndOfWeek:", endOfWeek);
+
+
             let lineChartStartDate = isInitialLoad ? startOfWeek : (startDate || startOfWeek);
             let lineChartEndDate = isInitialLoad ? endOfWeek : (endDate || endOfWeek);
 
             let {firstDayOfMonth, lastDayOfMonth} = this.getCurrentMonth();
             let barChartStartDate = isInitialLoad ? firstDayOfMonth : (startDate || firstDayOfMonth);
             let barChartEndDate = isInitialLoad ? lastDayOfMonth : (endDate || lastDayOfMonth);
+
+            console.log(barChartStartDate);
+            console.log(barChartEndDate);
 
             rpc.query({
                 model: 'dashboard_pontual.dashboard_pontual',
@@ -263,10 +274,13 @@ odoo.define('dashPontual.Dashboard', function (require) {
         render_line_chart: function (attendance_by_day) {
             let ctx = document.getElementById("myLineChart").getContext("2d");
 
-            let labels = attendance_by_day.map(day => day.day_of_week);
+
+            console.log('dsl;fkld;skfl;sdkfl;kd;lskf', attendance_by_day);
+            attendance_by_day.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            let labels = attendance_by_day.map(day => day.day_of_week.substring(0, 3));
             let presentes = attendance_by_day.map(day => day.presentes);
             let ausentes = attendance_by_day.map(day => day.ausentes);
-
 
             if (myLineChart) {
                 myLineChart.destroy();
@@ -281,16 +295,18 @@ odoo.define('dashPontual.Dashboard', function (require) {
                             label: "Presentes",
                             data: presentes,
                             borderColor: "#4CAF50",
-                            backgroundColor: "rgba(76, 175, 80, 0.2)",
+                            backgroundColor: "rgba(76, 175, 80, 0.1)",
                             borderWidth: 2,
+                            tension: 0.1,
                             fill: true
                         },
                         {
                             label: "Ausentes",
                             data: ausentes,
                             borderColor: "#F44336",
-                            backgroundColor: "rgba(244, 67, 54, 0.2)",
+                            backgroundColor: "rgba(244, 67, 54, 0.1)",
                             borderWidth: 2,
+                            tension: 0.1,
                             fill: true
                         }
                     ]
@@ -301,6 +317,10 @@ odoo.define('dashPontual.Dashboard', function (require) {
                     plugins: {
                         legend: {
                             position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
                         }
                     },
                     scales: {
@@ -308,6 +328,9 @@ odoo.define('dashPontual.Dashboard', function (require) {
                             title: {
                                 display: true,
                                 text: "Dias da Semana"
+                            },
+                            grid: {
+                                display: false
                             }
                         },
                         y: {
@@ -317,6 +340,11 @@ odoo.define('dashPontual.Dashboard', function (require) {
                             },
                             beginAtZero: true
                         }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
                     }
                 }
             });
@@ -329,23 +357,37 @@ odoo.define('dashPontual.Dashboard', function (require) {
 
         getCurrentWeek: function () {
             let today = new Date();
-            let first = today.getDate() - today.getDay();
-            let last = first + 6;
+            let dayOfWeek = today.getDay(); // 0 (Sunday) to 6 (Saturday)
 
-            let startOfWeek = new Date(today.setDate(first)).toISOString().split('T')[0];
-            let endOfWeek = new Date(today.setDate(last)).toISOString().split('T')[0];
+            let startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - dayOfWeek);
 
-            return {startOfWeek, endOfWeek};
+            let endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+            return {
+                startOfWeek: startOfWeek.toISOString().split('T')[0],
+                endOfWeek: endOfWeek.toISOString().split('T')[0]
+            };
         },
+
 
         getCurrentMonth: function () {
             let today = new Date();
-            let firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-            let lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+            let firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            let lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-            return {firstDayOfMonth, lastDayOfMonth};
+            let firstDayStr = firstDayOfMonth.toLocaleDateString('en-CA');
+            let lastDayStr = lastDayOfMonth.toLocaleDateString('en-CA');
+
+            console.log("FirstDayOfMonth:", firstDayStr);
+            console.log("LastDayOfMonth:", lastDayStr);
+
+            return {
+                firstDayOfMonth: firstDayStr,
+                lastDayOfMonth: lastDayStr
+            };
         },
-
 
         render_bar_chart: function (attendance_by_day) {
             let ctx = document.getElementById("myBarChart").getContext("2d");

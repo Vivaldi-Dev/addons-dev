@@ -1,60 +1,180 @@
 <odoo>
-  <data>
-    <!-- explicit list view definition -->
-<!--
-    <record model="ir.ui.view" id="js_pontual_candidate.list">
-      <field name="name">js_pontual_candidate list</field>
-      <field name="model">js_pontual_candidate.js_pontual_candidate</field>
-      <field name="arch" type="xml">
-        <tree>
-          <field name="name"/>
-          <field name="value"/>
-          <field name="value2"/>
-        </tree>
-      </field>
+    <record id="view_shift_swap_tree" model="ir.ui.view">
+        <field name="name">shift.swap.tree</field>
+        <field name="model">shift.swap</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name" string="code"/>
+                <field name="employee_id"/>
+                <field name="requested_employee_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="state"/>
+            </tree>
+        </field>
     </record>
--->
 
-    <!-- actions opening views on models -->
-<!--
-    <record model="ir.actions.act_window" id="js_pontual_candidate.action_window">
-      <field name="name">js_pontual_candidate window</field>
-      <field name="res_model">js_pontual_candidate.js_pontual_candidate</field>
-      <field name="view_mode">tree,form</field>
+    <record id="view_shift_swap_form" model="ir.ui.view">
+        <field name="name">shift.swap.form</field>
+        <field name="model">shift.swap</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_request" string="Solicitar" type="object" class="btn-primary" states="draft"/>
+                    <button name="action_approve" string="Aprovar" type="object" class="btn-success"
+                            states="requested"/>
+                    <button name="action_reject" string="Rejeitar" type="object" class="btn-danger" states="requested"/>
+                    <button name="action_cancel" string="Cancelar" type="object" states="draft,requested"/>
+                    <button name="action_reset" string="Resetar" type="object" states="approved,rejected,canceled"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+
+                    <group>
+                        <group>
+                            <field name="date_from"/>
+
+                        </group>
+
+                        <group>
+                            <field name="date_to"/>
+                        </group>
+
+                    </group>
+
+                    <group>
+                        <group>
+                            <field name="employee_id"/>
+                            <field name="current_shift_id" readonly="1"/>
+                            <field name="day_period" widget="radio" options="{'horizontal': true}"/>
+                            <field name="current_period_time" readonly="1"/>
+                        </group>
+
+                        <group>
+                            <field name="requested_employee_id"/>
+                        </group>
+
+                        <group>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+
+
+                    <notebook>
+                        <page string="Dias de Troca">
+                            <field name="swap_days_ids" mode="tree,form">
+                                <tree>
+                                    <field name="date"/>
+                                    <field name="day_of_week"/>
+                                    <field name="is_working_day" string="Dia Válido?"/>
+                                    <field name="notes"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
     </record>
--->
 
-    <!-- server action to the one above -->
-<!--
-    <record model="ir.actions.server" id="js_pontual_candidate.action_server">
-      <field name="name">js_pontual_candidate server</field>
-      <field name="model_id" ref="model_js_pontual_candidate_js_pontual_candidate"/>
-      <field name="state">code</field>
-      <field name="code">
-        action = {
-          "type": "ir.actions.act_window",
-          "view_mode": "tree,form",
-          "res_model": model._name,
-        }
-      </field>
+    <record id="view_shift_swap_search" model="ir.ui.view">
+        <field name="name">shift.swap.search</field>
+        <field name="model">shift.swap</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="employee_id"/>
+                <field name="requested_employee_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <filter name="state" string="Estado" domain="[]" context="{'group_by': 'state'}"/>
+            </search>
+        </field>
     </record>
--->
 
-    <!-- Top menu item -->
-<!--
-    <menuitem name="js_pontual_candidate" id="js_pontual_candidate.menu_root"/>
--->
-    <!-- menu categories -->
-<!--
-    <menuitem name="Menu 1" id="js_pontual_candidate.menu_1" parent="js_pontual_candidate.menu_root"/>
-    <menuitem name="Menu 2" id="js_pontual_candidate.menu_2" parent="js_pontual_candidate.menu_root"/>
--->
-    <!-- actions -->
-<!--
-    <menuitem name="List" id="js_pontual_candidate.menu_1_list" parent="js_pontual_candidate.menu_1"
-              action="js_pontual_candidate.action_window"/>
-    <menuitem name="Server to list" id="js_pontual_candidate" parent="js_pontual_candidate.menu_2"
-              action="js_pontual_candidate.action_server"/>
--->
-  </data>
+
+    <record id="view_certificate_request_form" model="ir.ui.view">
+        <field name="name">certificate.request.form</field>
+        <field name="model">certificate.request</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_request" string="Solicitar" type="object" class="btn-primary" states="draft"/>
+                    <button name="action_approve" string="Aprovar" type="object" class="btn-success"
+                            states="requested"/>
+                    <button name="action_reject" string="Rejeitar" type="object" class="btn-danger" states="requested"/>
+                    <button name="action_done" string="Concluir" type="object" class="btn-primary" states="approved"/>
+                    <button name="action_reset" string="Resetar" type="object" class="btn-secondary"
+                            states="rejected,done"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="employee_id"/>
+                            <field name="department_id" readonly="1"/>
+                            <field name="request_date" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="certificatetype"/>
+                            <label for="supported_attachment_ids" string="Documentos Anexados"/>
+                            <field name="supported_attachment_ids" widget="many2many_binary" nolabel="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Observações">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+
+    <record id="view_certificate_request_tree" model="ir.ui.view">
+        <field name="name">certificate.request.tree</field>
+        <field name="model">certificate.request</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name" string="code"/>
+                <field name="employee_id"/>
+                <field name="certificatetype"/>
+                <field name="request_date"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_shift_swap" model="ir.actions.act_window">
+        <field name="name">Solicitações de Troca de Turno</field>
+        <field name="res_model">shift.swap</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Sem dados adicionados ainda
+            </p>
+        </field>
+    </record>
+
+    <record id="action_certificate_request" model="ir.actions.act_window">
+        <field name="name">Solicitações de Certificados</field>
+        <field name="res_model">certificate.request</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Sem dados adicionados ainda
+            </p>
+        </field>
+    </record>
+
+
+    <menuitem id="menu_shift_swap_root"
+              name="Troca de Turnos"
+              web_icon="js_pontual_candidate,static/description/icon.png"
+              sequence="10" action="action_shift_swap"/>
+
+    <menuitem id="menu_certificate_requests" name="Solicitações" parent="menu_shift_swap_root"
+              action="action_certificate_request"/>
+
+
 </odoo>

@@ -1629,7 +1629,6 @@ class CheckIn(http.Controller):
                 ('device_id', '!=', False)
             ]
 
-            # Adicionando filtro para department_id se fornecido
             if department_id:
                 try:
                     department_id = int(department_id)

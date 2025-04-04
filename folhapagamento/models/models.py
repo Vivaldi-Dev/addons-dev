@@ -85,8 +85,11 @@ class FolhaPagamento(models.Model):
             record.aprovado_por = self.env.user
 
     def action_cancel(self):
-        for record in self:
-            record.state = 'cancelled'
+
+        self.write({
+            'state': 'cancelled',
+        })
+        return True
 
     def action_view_report(self):
         print("ID do registro:", self.id)
@@ -104,11 +107,13 @@ class FolhaPagamento(models.Model):
         }
 
     def unlink(self):
-        # Verifica se existe alguma Folha de Pagamento que não esteja nos estados 'submitted' ou 'cancelled'
-        if any(self.filtered(lambda payslip: payslip.state not in ('submitted', 'cancelled'))):
-            raise UserError(_("Não é possível excluir uma folha de pagamento que está no estado 'Aprovado' ou 'Concluído'."))
+        for record in self:
+            if record.state not in ('submitted', 'cancelled'):
+                raise UserError(
+                    _("Não é possível excluir uma folha de pagamento que está no estado 'Aprovado' ou 'Concluído'."))
 
-        # Se todas as folhas de pagamento estiverem nos estados permitidos, executa a exclusão
+            record.payslip_ids.filtered(lambda p: p.state != 'cancel').action_payslip_cancel()
+
         return super(FolhaPagamento, self).unlink()
 
     @api.model
@@ -117,7 +122,6 @@ class FolhaPagamento(models.Model):
         if company_id:
             args = args or []
             args.append(('company_id', '=', company_id))
-        print(f"Empresa ativa no search: {company_id}, Filtros aplicados: {args}")
         return super(FolhaPagamento, self).search(args, offset=offset, limit=limit, order=order, count=count)
 
     @api.onchange('month', 'departamento_id', 'year')
@@ -149,7 +153,7 @@ class FolhaPagamento(models.Model):
         for record in self:
             line_ids = record.payslip_ids.mapped('line_ids')
             record.salary_rule_line_ids = line_ids
-            print(f"Salary Line IDs Computed: {line_ids}")
+
 
 
     @api.depends('salary_rule_line_ids', 'departamento_id')

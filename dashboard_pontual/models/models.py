@@ -22,7 +22,6 @@ class HrAttendance(models.Model):
 
     @api.onchange('employee_id')
     def _onchange_employee(self):
-        print(f"Funcionário alterado para: {self.employee_id.name if self.employee_id else 'Nenhum'}")
 
         if self.employee_id:
             self._compute_color()
@@ -30,7 +29,6 @@ class HrAttendance(models.Model):
     @api.depends('check_in', 'employee_id', 'employee_id.resource_calendar_id')
     def _compute_color(self):
         for attendance in self:
-            print(f"Recalculando atraso para: {attendance.employee_id.name if attendance.employee_id else 'Nenhum'}")
             if attendance.check_in:
                 delay, minutes = self._check_for_delay(attendance)
                 attendance.status = 4 if delay else 10
@@ -42,10 +40,7 @@ class HrAttendance(models.Model):
                 attendance.delay_duration = "00:00"
 
     def _format_delay_duration(self, minutes):
-        """
-        Formata os minutos de atraso no formato HH:MM.
-        Exemplo: 248 minutos → "04:08"
-        """
+
         hours = minutes // 60
         remaining_minutes = minutes % 60
         return f"{hours:02d}:{remaining_minutes:02d}"
@@ -69,7 +64,7 @@ class HrAttendance(models.Model):
         if work_day and work_day['employee_id'] == employee.id:
             expected_time = work_day['hour_from']
 
-            if expected_time:  # Verifica se expected_time não é None
+            if expected_time:
                 expected_datetime = datetime.combine(check_in_local.date(), expected_time)
                 expected_datetime = maputo_tz.localize(expected_datetime)
 
@@ -84,7 +79,6 @@ class HrAttendance(models.Model):
 
                     return True, delay_minutes
             else:
-                # Se expected_time for None, não há horário esperado, portanto, não há atraso
                 return False, 0
 
         return False, 0
@@ -149,11 +143,11 @@ class DashboardPontual(models.Model):
 
     @api.model
     def get_pontual_js_data(self, start_date, end_date, company_id):
-        print(start_date, end_date, company_id)
 
         employees = self.env['hr.employee'].sudo().search([
             ('company_id', '=', company_id),
-            ('active', '=', True)
+            ('active', '=', True),
+            ('device_id', '!=', False)
         ])
         total_employees = len(employees)
         employee_ids = employees.ids
@@ -162,7 +156,8 @@ class DashboardPontual(models.Model):
         checkins = self.env['hr.attendance'].sudo().search([
             ('check_in', '>=', start_date),
             ('check_in', '<=', end_date),
-            ('employee_id', 'in', employee_ids)
+            ('employee_id', 'in', employee_ids),
+            ('employee_id.device_id', '!=', False)
         ])
         checked_in_employee_ids = checkins.mapped('employee_id.id')
 
@@ -176,6 +171,7 @@ class DashboardPontual(models.Model):
         total_atrasos = len(atrasos)
 
         attendance_by_day = self._look_for_fouls(start_date, end_date, company_id)
+        print('inicnio:', start_date, 'final:', end_date)
 
         percent_presents = (len(presents) / total_employees) * 100 if total_employees else 0
         percent_absents = (len(absents) / total_employees) * 100 if total_employees else 0
@@ -196,7 +192,8 @@ class DashboardPontual(models.Model):
         }
 
     def _look_for_fouls(self, start_date, end_date, company_id):
-        print(start_date, end_date, company_id)
+
+
 
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -216,7 +213,10 @@ class DashboardPontual(models.Model):
                 attendance = self.env['hr.attendance'].sudo().search([
                     ('employee_id', '=', employee.id),
                     ('check_in', '>=', datetime.combine(current_date, datetime.min.time())),
-                    ('check_in', '<=', datetime.combine(current_date, datetime.max.time()))
+                    ('check_in', '<=', datetime.combine(current_date, datetime.max.time())),
+                    ('employee_id', 'in', employee.ids),
+                    ('employee_id.device_id', '!=', False),
+                    ('employee_id.active', '=', True)
                 ])
 
                 if attendance:
@@ -230,6 +230,8 @@ class DashboardPontual(models.Model):
                 'presentes': presentes_dia,
                 'ausentes': ausentes_dia,
             })
+
+            print(presentes_dia, ausentes_dia)
 
             current_date += timedelta(days=1)
 
@@ -322,7 +324,6 @@ class DashboardPontual(models.Model):
             'hour_from': morning_from if morning_from else afternoon_from,
             'hour_to': afternoon_to if afternoon_to else morning_to,
         }
-
 
 class HrAbsentEmployees(models.TransientModel):
     _name = 'absent.employees'
@@ -419,55 +420,81 @@ class HrEmployeesWithoutCheckin(models.Model):
     _name = 'hr.employees.without.checkin'
     _description = 'Funcionários sem Check-in (Dinâmico)'
     _auto = False
+    _rec_name = 'display_name'
+
+    display_name = fields.Char(
+        string="Referência",
+        compute='_compute_display_name',
+        store=False,
+        readonly=True
+    )
 
     employee_id = fields.Many2one(
         'hr.employee',
         string="Funcionário",
         readonly=True
     )
+
     company_id = fields.Many2one(
         'res.company',
         string='Empresa',
         readonly=True,
-        copy=False,
-        help="Empresa",
         default=lambda self: self.env.company
-    )
-    date = fields.Date(
-        string="Data",
-        compute='_compute_date',
-        store=False
     )
 
     employee_name = fields.Char(
         string="Nome do Funcionário",
         related='employee_id.name',
-        readonly=True,
-        store=False
-    )
-
-    start_date = fields.Date(
-        string="Data Inicial",
         readonly=True
     )
-    end_date = fields.Date(
-        string="Data Final",
+
+    date = fields.Date(
+        string="Data de Referência",
+        compute='_compute_date',
+        store=False,
+        readonly=True
+    )
+
+    period_start = fields.Date(
+        string="Início do Período",
+        compute='_compute_period_dates',
+        store=False,
+        readonly=True
+    )
+
+    period_end = fields.Date(
+        string="Fim do Período",
+        compute='_compute_period_dates',
+        store=False,
         readonly=True
     )
 
     @api.depends_context('start_date', 'end_date')
     def _compute_date(self):
-
         start_date = self._context.get('start_date', fields.Date.today())
-        end_date = self._context.get('end_date', fields.Date.today())
         for record in self:
             record.date = start_date
 
+    @api.depends_context('start_date', 'end_date')
+    def _compute_period_dates(self):
+        start_date = self._context.get('start_date', fields.Date.today())
+        end_date = self._context.get('end_date', fields.Date.today())
+        for record in self:
+            record.period_start = start_date
+            record.period_end = end_date
+
+    def name_get(self):
+        result = []
+        for record in self:
+            name = record.display_name or f"Funcionário sem check-in"
+            result.append((record.id, name))
+        return result
+
     @api.model
     def search(self, args, offset=0, limit=None, order=None, count=False):
-
         start_date = False
         end_date = False
+
         for arg in args:
             if isinstance(arg, (list, tuple)) and len(arg) == 3:
                 if arg[0] == 'date' and arg[1] == '>=':
@@ -481,7 +508,9 @@ class HrEmployeesWithoutCheckin(models.Model):
 
         domain = [
             ('employee_id', 'not in', self._get_employees_with_checkin(start_date, end_date)),
-            ('company_id', '=', self.env.company.id)
+            ('company_id', '=', self.env.company.id),
+            ('employee_id.device_id', '!=', False),
+            ('employee_id.active', '=', True)
         ]
 
         self = self.with_context(start_date=start_date, end_date=end_date)
@@ -489,9 +518,6 @@ class HrEmployeesWithoutCheckin(models.Model):
         return super().search(domain, offset=offset, limit=limit, order=order, count=count)
 
     def _get_employees_with_checkin(self, start_date, end_date):
-        """
-        Retorna uma lista de IDs de funcionários que fizeram check-in no período.
-        """
         self._cr.execute("""
             SELECT DISTINCT employee_id
             FROM hr_attendance
@@ -500,34 +526,29 @@ class HrEmployeesWithoutCheckin(models.Model):
         return [row[0] for row in self._cr.fetchall()]
 
     def init(self):
-        """
-        Método init para recriar a view no banco de dados.
-        """
-        self._cr.execute("DROP VIEW IF EXISTS hr_employees_without_checkin CASCADE")
         self._cr.execute("""
             CREATE OR REPLACE VIEW hr_employees_without_checkin AS (
                 SELECT
                     e.id AS id,
                     e.id AS employee_id,
-                    e.company_id AS company_id
+                    e.company_id AS company_id,
+                    e.name AS name  
                 FROM hr_employee e
-                WHERE
-                    e.company_id = %(company_id)s
-                GROUP BY e.id, e.company_id
+                WHERE e.device_id IS NOT NULL
+                AND e.active = True  
             )
-        """, {
-            'company_id': self.env.company.id
-        })
+        """)
 
     @api.model
     def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
-        res = super(HrEmployeesWithoutCheckin, self).fields_view_get(
+        res = super().fields_view_get(
             view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu
         )
-        if view_type == 'tree':
 
+        if view_type in ['tree', 'form']:
             start_date = self._context.get('start_date', fields.Date.today())
             end_date = self._context.get('end_date', fields.Date.today())
+
             if isinstance(res, dict) and 'context' in res:
                 res['context'].update({
                     'start_date': start_date,

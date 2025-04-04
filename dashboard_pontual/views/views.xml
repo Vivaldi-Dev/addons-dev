@@ -86,8 +86,8 @@
                         <field name="employee_name" string="Nome do Funcionário"/>
                         <field name="company_id" string="Empresa"/>
                         <field name="date" string="Data"/>
-                        <field name="start_date" string="Data Inicial"/>
-                        <field name="end_date" string="Data Final"/>
+                        <field name="period_start" string="Data Inicial"/>
+                        <field name="period_end" string="Data Final"/>
                     </group>
                 </sheet>
             </form>
@@ -117,8 +117,8 @@
 
                 <filter string="My Attendances" name="myattendances" domain="[('employee_id.user_id.id', '=', uid)]" />
 
-                <field name="start_date" invisible="1"/>
-                <field name="end_date" invisible="1"/>
+                <field name="period_start" invisible="1"/>
+                <field name="period_end" invisible="1"/>
 
                 <separator/>
 

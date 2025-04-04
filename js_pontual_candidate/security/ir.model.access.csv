@@ -1,2 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_js_pontual_candidate_js_pontual_candidate,js_pontual_candidate.js_pontual_candidate,model_js_pontual_candidate_js_pontual_candidate,base.group_user,1,1,1,1
+access_shift_swap,shift,model_shift_swap,,1,1,1,1
+access_shift_day,shift,model_shift_day,,1,1,1,1
+access_certificate_request,certificate,model_certificate_request,,1,1,1,1
+access_last_record,last,model_last_record,,1,1,1,1
+
