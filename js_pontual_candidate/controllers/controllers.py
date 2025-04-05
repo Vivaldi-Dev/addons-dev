@@ -150,6 +150,7 @@ class JsPontualCandidate(http.Controller):
         clean = re.sub(r'<[^>]*?>', '', html)  # Remove todas as tags HTML
         return clean.strip()
 
+    @token_required
     @http.route(f"{BASE_URL}/announcements/<int:employee_id>", type='http', auth='none', cors='*', csrf=False,
                 methods=['GET'])
     def get_announcements_by_department(self, employee_id):
@@ -199,6 +200,63 @@ class JsPontualCandidate(http.Controller):
 
         return werkzeug.wrappers.Response(
             json.dumps({"announcements": announcements_data}),
+            status=200,
+            headers=[('Content-Type', 'application/json')]
+        )
+
+    @token_required
+    @http.route(f"{BASE_URLS}/announcements/last/<int:employee_id>", type='http', auth='none', cors='*', csrf=False,
+                methods=['GET'])
+    def get_last_announcement_by_department(self, employee_id):
+        if not employee_id:
+            response_data = json.dumps({"error": "employee_id is required"})
+            return request.make_response(
+                response_data,
+                status=400,
+                headers=[('Content-Type', 'application/json')]
+            )
+
+        employee = request.env['hr.employee'].sudo().search([('id', '=', employee_id)], limit=1)
+
+        if not employee:
+            response_data = json.dumps({"error": "employee_id not found"})
+            return werkzeug.wrappers.Response(
+                response_data,
+                status=404,
+                headers=[('Content-Type', 'application/json')]
+            )
+
+        department_ids = employee.department_id.ids
+        announcement = request.env['hr.announcement'].sudo().search(
+            [('department_ids', 'in', department_ids)],
+            order='date_start desc',
+            limit=1
+        )
+
+        if not announcement:
+            response_data = json.dumps({
+                "success": False,
+                "status_code": 404,
+                "error": "No announcements found for this department"
+            })
+            return werkzeug.wrappers.Response(
+                response_data,
+                status=404,
+                headers=[('Content-Type', 'application/json')]
+            )
+
+        plain_text = self.strip_html_tags(announcement.announcement)
+
+        announcement_data = {
+            'id': announcement.id,
+            'title': announcement.announcement_reason,
+            'announcement': plain_text,
+            'date_start': announcement.date_start.strftime('%Y-%m-%d'),
+            'department': ', '.join([dept.name for dept in announcement.department_ids]),
+        }
+
+        return werkzeug.wrappers.Response(
+            json.dumps({"last_announcement": announcement_data}),
             status=200,
             headers=[('Content-Type', 'application/json')]
         )
@@ -841,8 +899,7 @@ class JsPontualCandidate(http.Controller):
         date_to = kwargs.get('date_to')
         limit = int(kwargs.get('limit', 10))
         offset = int(kwargs.get('offset', 0))
-
-        print(kwargs)
+        tz_maputo = pytz.timezone('Africa/Maputo')
 
         if not date_from or not date_to:
             return werkzeug.wrappers.Response(
@@ -880,18 +937,25 @@ class JsPontualCandidate(http.Controller):
         attendances = request.env['hr.attendance'].sudo().search([
             ('employee_id', '=', employee_id),
             ('check_in', '>=', date_from),
+            ('check_in', '<=', date_to)
         ], limit=limit, offset=offset)
 
-        attendance_data = [{
-            'check_in': att.check_in.strftime('%Y-%m-%d') if att.check_in else "",
-            'hora_check_in': att.check_in.strftime('%H:%M') if att.check_in else "",
-            'check_out': att.check_out.strftime('%Y-%m-%d') if att.check_out else "",
-            'hora_check_out': att.check_out.strftime('%H:%M') if att.check_out else "",
-        } for att in attendances]
+        attendance_data = []
+        for att in attendances:
+            check_in_local = att.check_in.astimezone(tz_maputo) if att.check_in else None
+            check_out_local = att.check_out.astimezone(tz_maputo) if att.check_out else None
+
+            attendance_data.append({
+                'check_in': check_in_local.strftime('%Y-%m-%d') if check_in_local else "",
+                'hora_check_in': check_in_local.strftime('%H:%M') if check_in_local else "",
+                'check_out': check_out_local.strftime('%Y-%m-%d') if check_out_local else "",
+                'hora_check_out': check_out_local.strftime('%H:%M') if check_out_local else "",
+            })
 
         total_attendances = request.env['hr.attendance'].sudo().search_count([
             ('employee_id', '=', employee_id),
             ('check_in', '>=', date_from),
+            ('check_in', '<=', date_to)
         ])
 
         leaves = request.env['hr.leave'].sudo().search([
@@ -902,8 +966,8 @@ class JsPontualCandidate(http.Controller):
 
         leave_data = [{
             'holiday_status': leave.holiday_status_id.name,
-            'request_date_from': leave.request_date_from.strftime('%Y-%m-%d %H:%M') if leave.request_date_from else "",
-            'request_date_to': leave.request_date_to.strftime('%Y-%m-%d %H:%M') if leave.request_date_to else "",
+            'request_date_from': leave.request_date_from.strftime('%Y-%m-%d ') if leave.request_date_from else "",
+            'request_date_to': leave.request_date_to.strftime('%Y-%m-%d ') if leave.request_date_to else "",
             'state': leave.state
         } for leave in leaves]
 
@@ -913,6 +977,14 @@ class JsPontualCandidate(http.Controller):
             ('request_date_to', '<=', date_to)
         ])
 
+        total_dias = total_attendances + total_leaves
+        if total_dias > 0:
+            attendance_percentage = (total_attendances / total_dias) * 100
+            leaves_percentage = (total_leaves / total_dias) * 100
+        else:
+            attendance_percentage = 0.0
+            leaves_percentage = 0.0
+
         return werkzeug.wrappers.Response(
             json.dumps({
                 'employee_id': employee.id,
@@ -921,6 +993,8 @@ class JsPontualCandidate(http.Controller):
                 'total_attendance': total_attendances,
                 'leaves': leave_data,
                 'total_leaves': total_leaves,
+                'attendance_percentage': round(attendance_percentage, 2),
+                'leaves_percentage': round(leaves_percentage, 2),
                 'limit': limit,
                 'offset': offset
             }),
@@ -1020,7 +1094,11 @@ class JsPontualCandidate(http.Controller):
             'id': company.id,
             "employee_name": employee.name,
             "employee_id": employee.id,
-            'company_details': company.id,
+            "job_position": employee.job_id.name,
+            'company_details': company.company_details,
+            'company_id': company.id,
+            'company_name': company.name,
+
             'street': company.street,
             'vat': company.vat
 
@@ -1028,6 +1106,7 @@ class JsPontualCandidate(http.Controller):
 
         payslip_data = [{
             'name': payslip.name,
+            'create_date':payslips.create_date.strftime('%m-%d-%Y'),
             'date_from': payslip.date_from.strftime('%Y-%m-%d') if payslip.date_from else None,
             'date_to': payslip.date_to.strftime('%Y-%m-%d') if payslip.date_to else None,
             "reference": payslip.number,
@@ -2501,4 +2580,43 @@ class JsPontualCandidate(http.Controller):
             }),
             headers=[('Content-Type', 'application/json')],
             status=200
+        )
+
+    @http.route(f'{BASE_URLS}/payroll/download/<int:payslip_id>', type='http', auth='none', csrf=False)
+    def download_payslip_pdf(self, payslip_id):
+        if not payslip_id:
+            return werkzeug.wrappers.Response(
+                json.dumps({
+                    'success': False,
+                    'error': 'Payslip ID is required',
+                }),
+                content_type='application/json',
+                status=400
+            )
+
+        payroll_user_id = request.env.ref('base.user_admin').id
+
+        env = request.env(user=payroll_user_id)
+
+        payslip = env['hr.payslip'].sudo().browse(payslip_id)
+        if not payslip.exists():
+            return request.not_found()
+
+        try:
+            pdf_content, _ = env.ref('hr_payroll_community.action_report_payslip').sudo()._render_qweb_pdf(payslip.id)
+        except Exception as e:
+            return werkzeug.wrappers.Response(
+                json.dumps({'success': False, 'error': str(e)}),
+                content_type='application/json',
+                status=500
+            )
+
+        pdf_filename = f"Recibo_{payslip.employee_id.name.replace(' ', '_')}.pdf"
+
+        return request.make_response(
+            pdf_content,
+            headers=[
+                ('Content-Type', 'application/pdf'),
+                ('Content-Disposition', f'attachment; filename="{pdf_filename}"')
+            ]
         )

@@ -357,7 +357,7 @@ odoo.define('dashPontual.Dashboard', function (require) {
 
         getCurrentWeek: function () {
             let today = new Date();
-            let dayOfWeek = today.getDay(); // 0 (Sunday) to 6 (Saturday)
+            let dayOfWeek = today.getDay();
 
             let startOfWeek = new Date(today);
             startOfWeek.setDate(today.getDate() - dayOfWeek);
