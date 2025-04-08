@@ -1106,7 +1106,7 @@ class JsPontualCandidate(http.Controller):
 
         payslip_data = [{
             'name': payslip.name,
-            'create_date':payslips.create_date.strftime('%m-%d-%Y'),
+            'create_date': payslips.create_date.strftime('%m-%d-%Y'),
             'date_from': payslip.date_from.strftime('%Y-%m-%d') if payslip.date_from else None,
             'date_to': payslip.date_to.strftime('%Y-%m-%d') if payslip.date_to else None,
             "reference": payslip.number,
@@ -2200,6 +2200,61 @@ class JsPontualCandidate(http.Controller):
             return http.Response(json.dumps({"error": str(e)}), status=500,
                                  content_type='application/json')
 
+    @http.route(f'{BASE_URLS}/employee/messages/attachments/<int:employee_id>', type='http', auth='none',
+                methods=['GET'], csrf=False)
+    def get_employee_message_attachments(self, employee_id):
+        try:
+            employee = request.env['hr.employee'].sudo().browse(int(employee_id))
+            if not employee.exists():
+                return http.Response(json.dumps({"error": "Employee not found"}), status=404,
+                                     content_type='application/json')
+
+            if not employee.user_id or not employee.user_id.partner_id:
+                return http.Response(json.dumps({"error": "No partner associated"}), status=404,
+                                     content_type='application/json')
+
+            current_partner_id = employee.user_id.partner_id.id
+
+            domain = [
+                '|',
+                '|',
+                ('author_id', '=', current_partner_id),
+                ('partner_ids', 'in', [current_partner_id]),
+                '&',
+                ('model', '=', 'mail.channel'),
+                ('res_id', 'in', employee.user_id.channel_ids.ids)
+            ]
+
+            messages = request.env['mail.message'].sudo().search(domain, order='date DESC')
+
+            message_attachments = {}
+            for message in messages:
+                if message.attachment_ids:
+                    attachments = []
+                    for attachment in message.attachment_ids:
+                        attachments.append({
+                            "id": attachment.id,
+                            "name": attachment.name,
+                            "type": attachment.mimetype,
+                            "size": attachment.file_size
+                        })
+
+                    message_attachments[message.id] = attachments
+
+            response = {
+                "employee_id": employee_id,
+                "employee_name": employee.name,
+                "message_attachments": [{
+                    "message_id": message_id,
+                    "attachments": attachments
+                } for message_id, attachments in message_attachments.items()]
+            }
+
+            return http.Response(json.dumps(response, default=str), status=200, content_type='application/json')
+
+        except Exception as e:
+            return http.Response(json.dumps({"error": str(e)}), status=500, content_type='application/json')
+
     @token_required
     @http.route(f'{BASE_URLS}/employee/activities/<int:employee_id>', type='http', auth='none', methods=['GET'],
                 csrf=False)
@@ -2490,58 +2545,6 @@ class JsPontualCandidate(http.Controller):
             status=200
         )
 
-    @http.route('/api/payslip', type='json', auth='none', methods=['POST'], csrf=False)
-    def simulate_payslip(self, **kwargs):
-        data = request.jsonrequest
-
-        required_fields = ['employee_id', 'date_from', 'date_to']
-        if not all(field in data for field in required_fields):
-            return {
-                'error': f'Campos obrigatórios: {", ".join(required_fields)}',
-                'success': False
-            }
-
-        try:
-            contract = request.env['hr.contract'].sudo().search([
-                ('employee_id', '=', data['employee_id']),
-                ('state', '=', 'open'),
-                ('date_start', '<=', data['date_to']),
-                '|', ('date_end', '=', False), ('date_end', '>=', data['date_from'])
-            ], limit=1)
-
-            if not contract:
-                return {
-                    'error': 'Nenhum contrato válido encontrado para o funcionário no período',
-                    'success': False
-                }
-
-            payslip = request.env['hr.payslip'].sudo().create({
-                'employee_id': data['employee_id'],
-                'date_from': data['date_from'],
-                'date_to': data['date_to'],
-                'contract_id': contract.id,
-            })
-
-            payslip.admin()
-            payslip.compute_sheet()
-            payslip.write({'move_id': False})
-
-            net_value = 0
-            for line in payslip.line_ids:
-                if line.code == 'NET':
-                    net_value = line.total
-
-            return {
-                'success': True,
-                'net_value': net_value,
-                'message': 'Simulação realizada com sucesso'
-            }
-
-        except UserError as e:
-            return {'error': str(e), 'success': False}
-        except Exception as e:
-            return {'error': f'Erro inesperado: {str(e)}', 'success': False}
-
     @http.route(f'{BASE_URLS}/payslip/<int:id>', type='http', auth='none', methods=['GET'], csrf=False)
     def payslip(self, id):
         info = []
@@ -2620,3 +2623,168 @@ class JsPontualCandidate(http.Controller):
                 ('Content-Disposition', f'attachment; filename="{pdf_filename}"')
             ]
         )
+
+    @http.route('/api/payslip', type='json', auth='none', methods=['POST'], csrf=False)
+    def simulate_payslip(self, **kwargs):
+        data = request.jsonrequest
+
+        structuredata = []
+
+        required_fields = ['employee_id', 'date_from', 'date_to']
+        if not all(field in data for field in required_fields):
+            return {
+                'error': f'Campos obrigatórios: {", ".join(required_fields)}',
+                'success': False
+            }
+
+        try:
+            contract = request.env['hr.contract'].sudo().search([
+                ('employee_id', '=', data['employee_id']),
+                ('state', '=', 'open'),
+                ('date_start', '<=', data['date_to']),
+                '|', ('date_end', '=', False), ('date_end', '>=', data['date_from'])
+            ], limit=1)
+
+            if not contract:
+                return {
+                    'error': 'Nenhum contrato válido encontrado para o funcionário no período',
+                    'success': False
+                }
+
+            contract_struct_id = contract.struct_id.id
+            contract_struct_name = contract.struct_id.name
+            contract_name = contract.name or f"Contrato {contract.id}"
+
+            structures = request.env['hr.payroll.structure'].sudo().browse(contract_struct_id)
+
+            for structure in structures:
+                structuredata.extend([{
+                    'name': structure.id,
+                    'code': structure.code,
+                    'rule_ids': {
+                        'structure': structure.id,
+                        'name': rule.name,
+                        'code': rule.code,
+
+
+                        'amount_python_compute': rule.amount_python_compute,
+                    }
+                } for rule in structure.rule_ids])
+
+            return {
+                'success': True,
+                'contract_data': {
+                    'id': contract.id,
+                    'name': contract_name,
+                    'struct_id': contract_struct_id,
+                    'struct_name': contract_struct_name,
+                    'structure': structuredata,
+                    'wage': contract.wage
+                },
+                'message': 'Dados do contrato coletados com sucesso'
+            }
+
+        except UserError as e:
+            return {'error': str(e), 'success': False}
+        except Exception as e:
+            return {'error': f'Erro inesperado: {str(e)}', 'success': False}
+
+    @http.route(f'{BASE_URLS}/employee/messages/attachment/<int:attachment_id>', type='http', auth='none',
+                methods=['GET'], csrf=False)
+    def download_employee_attachment(self, attachment_id):
+        try:
+            attachment = request.env['ir.attachment'].sudo().browse(attachment_id)
+            if not attachment.exists():
+                return http.Response(
+                    json.dumps({"error": "Attachment not found"}),
+                    status=404,
+                    content_type='application/json'
+                )
+
+            file_data = base64.b64decode(attachment.datas)
+            headers = [
+                ('Content-Type', attachment.mimetype),
+                ('Content-Disposition', f'attachment; filename={attachment.name}'),
+                ('Content-Length', str(len(file_data)))
+            ]
+            return request.make_response(file_data, headers=headers)
+
+        except Exception as e:
+            return http.Response(
+                json.dumps({"error": str(e)}),
+                status=500,
+                content_type='application/json'
+            )
+
+    @http.route(f'{BASE_URLS}/employee/messages/attachments/<int:employee_id>', type='http', auth='none',
+                methods=['GET'], csrf=False)
+    def get_employee_message_attachments(self, employee_id):
+
+        BASE_URLS = '/api'
+
+        try:
+            employee = request.env['hr.employee'].sudo().browse(int(employee_id))
+            if not employee.exists():
+                return http.Response(
+                    json.dumps({"error": "Employee not found"}),
+                    status=404,
+                    content_type='application/json'
+                )
+
+            if not employee.user_id or not employee.user_id.partner_id:
+                return http.Response(
+                    json.dumps({"error": "No partner associated"}),
+                    status=404,
+                    content_type='application/json'
+                )
+
+            current_partner_id = employee.user_id.partner_id.id
+
+            domain = [
+                '|',
+                '|',
+                ('author_id', '=', current_partner_id),
+                ('partner_ids', 'in', [current_partner_id]),
+                '&',
+                ('model', '=', 'mail.channel'),
+                ('res_id', 'in', employee.user_id.channel_ids.ids)
+            ]
+
+            messages = request.env['mail.message'].sudo().search(domain, order='date DESC')
+
+            message_attachments = []
+            for message in messages:
+                if message.attachment_ids:
+                    attachments = []
+                    for attachment in message.attachment_ids:
+                        attachments.append({
+                            "id": attachment.id,
+                            "name": attachment.name,
+                            "type": attachment.mimetype,
+                            "size": attachment.file_size,
+                            "url": f"{BASE_URLS}/employee/messages/attachment/{attachment.id}"
+                        })
+
+                    message_attachments.append({
+                        "message_id": message.id,
+                        "attachments": attachments
+                    })
+
+            response = {
+                "employee_id": employee_id,
+                "employee_name": employee.name,
+                "message_attachments": message_attachments
+            }
+
+            return http.Response(
+                json.dumps(response, default=str),
+                status=200,
+                content_type='application/json'
+            )
+
+        except Exception as e:
+            return http.Response(
+                json.dumps({"error": str(e)}),
+                status=500,
+                content_type='application/json'
+            )
