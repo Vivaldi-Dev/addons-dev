@@ -6,6 +6,8 @@ import json
 import traceback
 from datetime import datetime, time, timedelta
 import re
+from pydub import AudioSegment
+import io
 
 import websockets
 from websockets import uri
@@ -147,7 +149,7 @@ class JsPontualCandidate(http.Controller):
 
     def strip_html_tags(self, html):
         import re
-        clean = re.sub(r'<[^>]*?>', '', html)  # Remove todas as tags HTML
+        clean = re.sub(r'<[^>]*?>', '', html)
         return clean.strip()
 
     @token_required
@@ -1800,6 +1802,138 @@ class JsPontualCandidate(http.Controller):
                 status=500
             )
 
+    @http.route(f'{BASE_URLS}/discuss/audio/send', auth='none', cors='*', type='http', methods=['POST'], csrf=False)
+    def discuss_send_audio(self, **kwargs):
+        try:
+            if request.httprequest.content_type.startswith('multipart/form-data'):
+                sender_id = request.params.get('sender_id')
+                receiver_id = request.params.get('receiver_id')
+                audio_file = request.httprequest.files.get('audio')
+            else:
+                return Response(
+                    json.dumps({
+                        'success': False,
+                        'error': 'Only multipart/form-data is supported for audio',
+                        'status_code': 400
+                    }),
+                    content_type='application/json',
+                    status=400
+                )
+
+            if not sender_id or not receiver_id or not audio_file:
+                return Response(
+                    json.dumps({
+                        'success': False,
+                        'error': 'sender_id, receiver_id and audio file are required',
+                        'status_code': 400,
+                    }),
+                    content_type='application/json',
+                    status=400
+                )
+
+            sender_employee = request.env['hr.employee'].sudo().browse(int(sender_id))
+            receiver_employee = request.env['hr.employee'].sudo().browse(int(receiver_id))
+
+            if not sender_employee.exists() or not receiver_employee.exists():
+                return Response(
+                    json.dumps({
+                        'success': False,
+                        'error': 'Sender or Receiver not found',
+                        'status_code': 404,
+                    }),
+                    content_type='application/json',
+                    status=404
+                )
+
+            sender_user = sender_employee.sudo().user_id
+            receiver_user = receiver_employee.sudo().user_id
+
+            if not sender_user or not receiver_user:
+                return Response(
+                    json.dumps({
+                        'success': False,
+                        'error': 'Employees must have associated users',
+                        'status_code': 400,
+                    }),
+                    content_type='application/json',
+                    status=400
+                )
+
+            sender_partner = sender_user.partner_id
+            receiver_partner = receiver_user.partner_id
+
+            if not sender_partner or not receiver_partner:
+                return Response(
+                    json.dumps({
+                        'success': False,
+                        'error': 'Users must have associated partners',
+                        'status_code': 400,
+                    }),
+                    content_type='application/json',
+                    status=400
+                )
+
+            record_name = f"{receiver_user.name}, {sender_user.name}"
+
+            # Conversão do áudio
+            original_data = audio_file.read()
+            original_ext = audio_file.filename.split('.')[-1].lower()
+            audio = AudioSegment.from_file(io.BytesIO(original_data), format=original_ext)
+            mp3_buffer = io.BytesIO()
+            audio.export(mp3_buffer, format='mp3')
+            mp3_data = mp3_buffer.getvalue()
+
+            # Criação do attachment MP3
+            attachment = request.env['ir.attachment'].sudo().create({
+                'name': 'voice_message.mp3',
+                'datas': base64.b64encode(mp3_data),
+                'res_model': 'mail.message',
+                'res_id': 0,
+                'type': 'binary',
+                'mimetype': 'audio/mpeg',
+            })
+
+            message = request.env['mail.message'].sudo().with_context(no_name_get=True).create({
+                'message_type': 'comment',
+                'res_id': 6,
+                'subtype_id': 1,
+                'model': 'mail.channel',
+                'reply_to': f'"{sender_user.name}" <{sender_user.login}>',
+                'create_uid': sender_user.id,
+                'author_id': sender_partner.id,
+                'partner_ids': [(4, receiver_partner.id)],
+                'record_name': record_name,
+                'attachment_ids': [(6, 0, [attachment.id])]
+            })
+
+            attachment.write({'res_id': message.id})
+
+            print(f"[AUDIO CONTROLLER] Mensagem criada com ID {message.id}, attachment mp3 gerado.")
+
+            return Response(
+                json.dumps({
+                    'success': True,
+                    'message_id': message.id,
+                    'record_name': record_name,
+                    'attachment_id': attachment.id,
+                    # 'url': f"/web/content/{attachment.id}?download=true",
+                    'status_code': 201,
+                }),
+                content_type='application/json',
+                status=201
+            )
+
+        except Exception as e:
+            return Response(
+                json.dumps({
+                    'success': False,
+                    'error': str(e),
+                    'status_code': 500
+                }),
+                content_type='application/json',
+                status=500
+            )
+
     @http.route(f'{BASE_URLS}/users', csrf=False, auth='none', type='http', methods=['POST'])
     def users(self):
         users = request.env['res.users'].sudo().search([])
@@ -1896,6 +2030,26 @@ class JsPontualCandidate(http.Controller):
                 'error': str(e),
                 'status_code': 500,
             }
+
+    def send_to_relevant_websockets(self, body, sender_id, receiver_id):
+        message_data = {
+            'body': body,
+            'sender_id': sender_id,
+            'recipient_id': receiver_id
+        }
+        print(f"Controller: Preparando para enviar para WebSockets - {message_data}")
+
+        for websocket in active_websockets:
+            try:
+                print(
+                    f"Controller: Verificando WebSocket - Sender: {websocket.get('sender_id')}, Recipient: {websocket.get('recipient_id')}")
+                if (websocket['sender_id'] == sender_id and websocket['recipient_id'] == receiver_id) or \
+                        (websocket['sender_id'] == receiver_id and websocket['recipient_id'] == sender_id):
+                    print(f"Controller: Enviando mensagem para WebSocket correspondente")
+                    asyncio.ensure_future(websocket['connection'].send(json.dumps(message_data)))
+            except Exception as e:
+                _logger.error(f"Error sending message to websocket: {str(e)}")
+
 
     @http.route(f'{BASE_URLS}/discuss/upload', auth='none', cors='*', type='http', methods=['POST'], csrf=False)
     def discuss_upload_attachment(self, **kwargs):
@@ -2060,24 +2214,7 @@ class JsPontualCandidate(http.Controller):
                 status=500
             )
 
-    def send_to_relevant_websockets(self, body, sender_id, receiver_id):
-        message_data = {
-            'body': body,
-            'sender_id': sender_id,
-            'recipient_id': receiver_id
-        }
-        print(f"Controller: Preparando para enviar para WebSockets - {message_data}")
 
-        for websocket in active_websockets:
-            try:
-                print(
-                    f"Controller: Verificando WebSocket - Sender: {websocket.get('sender_id')}, Recipient: {websocket.get('recipient_id')}")
-                if (websocket['sender_id'] == sender_id and websocket['recipient_id'] == receiver_id) or \
-                        (websocket['sender_id'] == receiver_id and websocket['recipient_id'] == sender_id):
-                    print(f"Controller: Enviando mensagem para WebSocket correspondente")
-                    asyncio.ensure_future(websocket['connection'].send(json.dumps(message_data)))
-            except Exception as e:
-                _logger.error(f"Error sending message to websocket: {str(e)}")
 
     @http.route('/ws_connect/', type='http', auth='none')
     async def ws_connect(self):
@@ -2105,7 +2242,7 @@ class JsPontualCandidate(http.Controller):
 
         return web.Response(text='WebSocket connection closed')
 
-    @token_required
+    # @token_required
     @http.route(f'{BASE_URLS}/employee/messages/<int:employee_id>', type='http', auth='none', methods=['GET'],
                 csrf=False)
     def get_employee_messages(self, employee_id):
@@ -2194,6 +2331,46 @@ class JsPontualCandidate(http.Controller):
             }
 
             return http.Response(json.dumps(response, default=str), status=200,
+                                 content_type='application/json')
+
+        except Exception as e:
+            return http.Response(json.dumps({"error": str(e)}), status=500,
+                                 content_type='application/json')
+
+    @http.route(f'{BASE_URLS}/employee/message_sender/<int:employee_id>', type='http', auth='none', methods=['GET'], csrf=False)
+    def get_employee_message_senders(self, employee_id):
+        try:
+            employee = request.env['hr.employee'].sudo().browse(employee_id)
+            if not employee.exists():
+                return http.Response(json.dumps({"error": "Employee not found"}), status=404,
+                                     content_type='application/json')
+
+            if not employee.user_id or not employee.user_id.partner_id:
+                return http.Response(json.dumps({"error": "No partner associated"}), status=404,
+                                     content_type='application/json')
+
+            current_partner_id = employee.user_id.partner_id.id
+
+            domain = [
+                '|',
+                '|',
+                ('partner_ids', 'in', [current_partner_id]),
+                '&', ('model', '=', 'mail.channel'),
+                ('res_id', 'in', employee.user_id.channel_ids.ids),
+                ('author_id', '!=', current_partner_id),
+            ]
+
+            messages = request.env['mail.message'].sudo().search(domain)
+
+            sender_ids = set(messages.mapped('author_id').ids)
+            senders = request.env['res.partner'].sudo().browse(list(sender_ids))
+
+            result = [{
+                "id": sender.id,
+                "name": sender.name
+            } for sender in senders]
+
+            return http.Response(json.dumps(result), status=200,
                                  content_type='application/json')
 
         except Exception as e:
@@ -2301,7 +2478,7 @@ class JsPontualCandidate(http.Controller):
         return werkzeug.wrappers.Response(response_data, status=200, headers=[('Content-Type', 'application/json')])
 
     @token_required
-    @http.route(f'{BASE_URLS}/employee/activity/accept', type='json', auth='user', methods=['POST'], csrf=False)
+    @http.route(f'{BASE_URLS}/employee/activity/accept', type='json', auth='none', methods=['POST'], csrf=False)
     def accept_employee_activity(self, **kwargs):
         try:
             data = request.httprequest.json
@@ -2339,7 +2516,7 @@ class JsPontualCandidate(http.Controller):
             }
 
     @token_required
-    @http.route(f'{BASE_URLS}/activity/<int:activity_id>', type='http', auth='user', methods=['GET'], csrf=False)
+    @http.route(f'{BASE_URLS}/activity/<int:activity_id>', type='http', auth='none', methods=['GET'], csrf=False)
     def get_activity_by_id(self, activity_id):
         if not activity_id:
             return werkzeug.wrappers.Response(
@@ -2412,7 +2589,7 @@ class JsPontualCandidate(http.Controller):
                 "status_code": 500
             }
 
-    @token_required
+    # @token_required
     @http.route(f'{BASE_URLS}/last_record/<int:employee_id>', type='http', auth='none', methods=['GET'], csrf=False)
     def get_last_record(self, employee_id):
         try:
@@ -2443,28 +2620,39 @@ class JsPontualCandidate(http.Controller):
                     status=404
                 )
 
+            leave_data = {
+                "name": last_record.leave_name if last_record.leave_name else None,
+                "state": last_record.leave_state if last_record.leave_state else None,
+            }
+            loan_data = {
+                "name": last_record.loan_name or '',
+                "state": last_record.loan_state or '',
+            }
+            swap_data = {
+                "state": last_record.swap_state or '',
+                "date": last_record.swap_date or '',
+            }
+            certificate_data = {
+                "name": last_record.certificate_name or '',
+                "state": last_record.certificate_state or '',
+                "date": last_record.certificate_date or '',
+            }
+
+            all_empty = all([
+                not leave_data["name"] and not leave_data["state"],
+                not loan_data["name"] and not loan_data["state"],
+                not swap_data["state"] and not swap_data["date"],
+                not certificate_data["name"] and not certificate_data["state"] and not certificate_data["date"],
+            ])
+
             response_data = {
                 "success": True,
-                "data": {
+                "data": {} if all_empty else {
                     "employee_id": employee_id,
-                    "leave": {
-                        "name": last_record.leave_name,
-                        "state": last_record.leave_state,
-                    },
-                    "loan": {
-                        "name": last_record.loan_name,
-                        "state": last_record.loan_state,
-                    },
-                    "swap": {
-                        ""
-                        "state": last_record.swap_state if last_record.swap_state else '',
-                        "date": last_record.swap_date if last_record.swap_date else '',
-                    },
-                    "certificate": {
-                        "name": last_record.certificate_name if last_record.certificate_name else '',
-                        "state": last_record.certificate_state if last_record.certificate_state else '',
-                        "date": last_record.certificate_date if last_record.certificate_date else '',
-                    }
+                    "leave": leave_data,
+                    "loan": loan_data,
+                    "swap": swap_data,
+                    "certificate": certificate_data
                 }
             }
 
@@ -2624,71 +2812,6 @@ class JsPontualCandidate(http.Controller):
             ]
         )
 
-    @http.route('/api/payslip', type='json', auth='none', methods=['POST'], csrf=False)
-    def simulate_payslip(self, **kwargs):
-        data = request.jsonrequest
-
-        structuredata = []
-
-        required_fields = ['employee_id', 'date_from', 'date_to']
-        if not all(field in data for field in required_fields):
-            return {
-                'error': f'Campos obrigatórios: {", ".join(required_fields)}',
-                'success': False
-            }
-
-        try:
-            contract = request.env['hr.contract'].sudo().search([
-                ('employee_id', '=', data['employee_id']),
-                ('state', '=', 'open'),
-                ('date_start', '<=', data['date_to']),
-                '|', ('date_end', '=', False), ('date_end', '>=', data['date_from'])
-            ], limit=1)
-
-            if not contract:
-                return {
-                    'error': 'Nenhum contrato válido encontrado para o funcionário no período',
-                    'success': False
-                }
-
-            contract_struct_id = contract.struct_id.id
-            contract_struct_name = contract.struct_id.name
-            contract_name = contract.name or f"Contrato {contract.id}"
-
-            structures = request.env['hr.payroll.structure'].sudo().browse(contract_struct_id)
-
-            for structure in structures:
-                structuredata.extend([{
-                    'name': structure.id,
-                    'code': structure.code,
-                    'rule_ids': {
-                        'structure': structure.id,
-                        'name': rule.name,
-                        'code': rule.code,
-
-
-                        'amount_python_compute': rule.amount_python_compute,
-                    }
-                } for rule in structure.rule_ids])
-
-            return {
-                'success': True,
-                'contract_data': {
-                    'id': contract.id,
-                    'name': contract_name,
-                    'struct_id': contract_struct_id,
-                    'struct_name': contract_struct_name,
-                    'structure': structuredata,
-                    'wage': contract.wage
-                },
-                'message': 'Dados do contrato coletados com sucesso'
-            }
-
-        except UserError as e:
-            return {'error': str(e), 'success': False}
-        except Exception as e:
-            return {'error': f'Erro inesperado: {str(e)}', 'success': False}
-
     @http.route(f'{BASE_URLS}/employee/messages/attachment/<int:attachment_id>', type='http', auth='none',
                 methods=['GET'], csrf=False)
     def download_employee_attachment(self, attachment_id):
@@ -2762,7 +2885,7 @@ class JsPontualCandidate(http.Controller):
                             "name": attachment.name,
                             "type": attachment.mimetype,
                             "size": attachment.file_size,
-                            "url": f"{BASE_URLS}/employee/messages/attachment/{attachment.id}"
+                            "url": f"/employee/messages/attachment/{attachment.id}"
                         })
 
                     message_attachments.append({
@@ -2788,3 +2911,261 @@ class JsPontualCandidate(http.Controller):
                 status=500,
                 content_type='application/json'
             )
+
+    @http.route(f'{BASE_URLS}/discuss/upload_audio', auth='none', type='http', methods=['POST'], csrf=False, cors='*')
+    def upload_audio(self, **kwargs):
+        try:
+            message_id = request.params.get('message_id')
+            uploaded_file = request.httprequest.files.get('audio')
+
+            if not message_id or not uploaded_file:
+                return Response(json.dumps({
+                    'success': False,
+                    'error': 'message_id and audio file are required'
+                }), content_type='application/json', status=400)
+
+            original_audio_data = uploaded_file.read()
+            original_extension = uploaded_file.filename.split('.')[-1].lower()
+
+
+            original_audio = AudioSegment.from_file(io.BytesIO(original_audio_data), format=original_extension)
+            mp3_buffer = io.BytesIO()
+            original_audio.export(mp3_buffer, format='mp3')
+            mp3_data = mp3_buffer.getvalue()
+
+            message = request.env['mail.message'].sudo().browse(int(message_id))
+            if not message.exists():
+                return Response(json.dumps({
+                    'success': False,
+                    'error': 'Message not found'
+                }), content_type='application/json', status=404)
+
+            attachment = request.env['ir.attachment'].sudo().create({
+                'name': 'voice_message.mp3',
+                'datas': base64.b64encode(mp3_data),
+                'mimetype': 'audio/mpeg',
+                'res_model': 'mail.message',
+                'res_id': message.id,
+                'type': 'binary',
+            })
+
+            message.write({
+                'attachment_ids': [(4, attachment.id)]
+            })
+
+            return Response(json.dumps({
+                'success': True,
+                'attachment_id': attachment.id
+            }), content_type='application/json', status=200)
+
+        except Exception as e:
+            return Response(json.dumps({
+                'success': False,
+                'error': str(e)
+            }), content_type='application/json', status=500)
+
+    @http.route(f'{BASE_URLS}/payslip', type='json', auth='none', methods=['POST'], csrf=False)
+    def simulate_payslip(self, **kwargs):
+        data = request.jsonrequest
+
+        structuredata = []
+
+        required_fields = ['employee_id', 'date_from', 'date_to']
+        if not all(field in data for field in required_fields):
+            return {
+                'error': f'Campos obrigatórios: {", ".join(required_fields)}',
+                'success': False
+            }
+
+        try:
+            contract = request.env['hr.contract'].sudo().search([
+                ('employee_id', '=', data['employee_id']),
+                ('state', '=', 'open'),
+                ('date_start', '<=', data['date_to']),
+                '|', ('date_end', '=', False), ('date_end', '>=', data['date_from'])
+            ], limit=1)
+
+            if not contract:
+                return {
+                    'error': 'Nenhum contrato válido encontrado para o funcionário no período',
+                    'success': False
+                }
+
+            contract_struct_id = contract.struct_id.id
+            contract_struct_name = contract.struct_id.name
+            contract_name = contract.name or f"Contrato {contract.id}"
+
+            structures = request.env['hr.payroll.structure'].sudo().browse(contract_struct_id)
+
+            for structure in structures:
+                structuredata.extend([{
+                    'name': structure.id,
+                    'code': structure.code,
+                    'rule_ids': {
+                        'structure': structure.id,
+                        'name': rule.name,
+                        'code': rule.code,
+
+                        'amount_python_compute': rule.amount_python_compute,
+                    }
+                } for rule in structure.rule_ids])
+
+            return {
+                'success': True,
+                'contract_data': {
+                    'id': contract.id,
+                    'name': contract_name,
+                    'struct_id': contract_struct_id,
+                    'struct_name': contract_struct_name,
+                    'structure': structuredata,
+                    'wage': contract.wage,
+                    'other_allowance': contract.other_allowance,
+                },
+                'message': 'Dados do contrato coletados com sucesso'
+            }
+
+        except UserError as e:
+            return {'error': str(e), 'success': False}
+        except Exception as e:
+            return {'error': f'Erro inesperado: {str(e)}', 'success': False}
+
+    @http.route('/api/payslip/calculation', type='json', auth='none', methods=['POST'], csrf=False)
+    def advanced_salary_calculation(self, **kwargs):
+        data = request.jsonrequest
+
+        try:
+
+            required_fields = ['employee_id', 'date_from', 'date_to']
+            if not all(field in data for field in required_fields):
+                return {
+                    'error': f'Campos obrigatórios: {", ".join(required_fields)}',
+                    'success': False
+                }
+
+            contract = request.env['hr.contract'].sudo().search([
+                ('employee_id', '=', data['employee_id']),
+                ('state', '=', 'open'),
+
+            ], limit=1)
+            if not contract.exists():
+                return {"success": False, "error": "Contrato não encontrado"}
+
+            basic = self._calculate_basic(contract)
+            allowance = self._calculate_allowance(contract)
+
+            additions = {}
+            deductions = {}
+
+            absent_days = self._look_for_fouls(data['employee_id'], data['date_from'], data['date_to'])
+            deductions['absence'] = self._calculate_dis_f_d(basic, allowance, absent_days)
+
+            if data.get('extra_hours'):
+                additions['extra_50'] = self._calculate_h_e_150(basic, allowance, data['extra_hours'].get('h_e_150', 0))
+                additions['extra_100'] = self._calculate_h_e_200(basic, allowance,
+                                                                 data['extra_hours'].get('h_e_200', 0))
+
+            if data.get('deductions'):
+                deductions['loan'] = self._calculate_dpe(data['deductions'].get('DPE', 0))
+                deductions['funeral'] = self._calculate_dff(data['deductions'].get('DFF', 0))
+                deductions['late'] = self._calculate_d_p_a(basic, allowance, data['deductions'].get('D_P_A', 0))
+
+            gross = self._calculate_gross(basic, allowance, sum(additions.values()))
+            inss = self._calculate_inss(gross)
+            taxable_income = gross - inss
+            irps = self._calculate_irps(taxable_income, contract.employee_id.children)
+            total_deductions = inss + irps + sum(deductions.values())
+            net = gross - total_deductions
+
+            return {
+                "success": True,
+                "result": {
+                    "components": {
+                        "basic": basic,
+                        "allowance": allowance,
+                        "additions": additions,
+                        "gross": gross
+                    },
+                    "deductions": {
+                        "INSS": inss,
+                        "IRPS": irps,
+                        "others": deductions,
+                        "total": total_deductions
+                    },
+                    "net_salary": net,
+                    "currency": "MZN"
+                }
+            }
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _calculate_basic(self, contract):
+
+        return contract.wage
+
+    def _calculate_allowance(self, contract):
+
+        return contract.other_allowance or 0
+
+    def _calculate_inss(self, gross):
+        """INSS (3% do bruto)"""
+        return gross * 0.03
+
+    def _calculate_dpe(self, amount):
+
+        return abs(float(amount))
+
+    def _calculate_dff(self, amount):
+
+        return abs(float(amount))
+
+    def _calculate_dis_f_d(self, basic_salary, allowance, days_absent):
+
+        daily_salary = (basic_salary + allowance) / 30
+        return daily_salary * abs(float(days_absent))
+
+    def _calculate_d_p_a(self, basic_salary, allowance, late_hours):
+
+        hourly_salary = ((basic_salary + allowance) / 30) / 8
+        return hourly_salary * abs(float(late_hours))
+
+    def _calculate_h_e_150(self, basic_salary, allowance, extra_hours):
+
+        hourly_rate = ((basic_salary + allowance) / 30) / 8
+        return hourly_rate * float(extra_hours) * 1.5
+
+    def _calculate_h_e_200(self, basic_salary, allowance, extra_hours):
+
+        hourly_rate = ((basic_salary + allowance) / 30) / 8
+        return hourly_rate * float(extra_hours) * 2.0
+
+    def _calculate_gross(self, basic, allowance, bonuses=0):
+
+        return basic + allowance + bonuses
+
+    def _calculate_irps(self, taxable_income, children=0):
+
+        children = min(int(children), 3)
+
+        if taxable_income <= 20250:
+            return 0
+        elif 20250 < taxable_income <= 20749.99:
+            return (taxable_income - 20250) * 0.10
+
+        else:
+            return max(taxable_income * 0.32 - 28225, 0)
+
+    def _look_for_fouls(self, employee_id, date_from, date_to):
+        busca = request.env['hr.leave'].sudo().search([
+            ('employee_id', '=', employee_id),
+            ('date_from', '>=', date_from),
+            ('date_to', '<=', date_to),
+            ('state', 'in', ['confirm', 'refuse']),
+        ])
+
+        total_dias = 0
+        for dado in busca:
+            dias = (dado.date_to - dado.date_from).days + 1
+            total_dias += dias
+
+        return total_dias

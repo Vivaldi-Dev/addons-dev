@@ -101,13 +101,11 @@ class HrPayslip(models.Model):
             if isinstance(check_in_utc, str):
                 check_in_utc = datetime.strptime(check_in_utc, DEFAULT_SERVER_DATETIME_FORMAT)
 
-
             check_in_local = pytz.utc.localize(check_in_utc).astimezone(timezone)
             check_in_time = check_in_local.time()
             day_of_week = check_in_local.weekday()
 
             work_day = self.work_days(employee, day_of_week)
-
 
             if work_day and work_day['employee_id'] == employee.id:
                 expected_time = work_day['hour_from']

@@ -6,6 +6,8 @@ from odoo import models, fields, api
 from datetime import datetime, timedelta
 from collections import defaultdict
 
+from odoo.exceptions import UserError
+
 
 class HrPayslipWorkedDays(models.Model):
     _inherit = 'hr.payslip.worked_days'
@@ -105,6 +107,14 @@ class Recibo(models.Model):
                 }
             },
         }
+
+    def action_download_txt_from_aggregated_lines(self):
+        self.ensure_one()
+        aggregated_lines = self.linhas_agregadas
+        if not aggregated_lines:
+            raise UserError("Nenhuma linha agregada encontrada.")
+
+        return aggregated_lines[0].action_download_txt()
 
     @api.model
     def search(self, args, offset=0, limit=None, order=None, count=False):
@@ -237,6 +247,8 @@ class Recibo(models.Model):
                 bank_account_number = employee.address_home_id.bank_ids[0].acc_number
                 bank_name = employee.address_home_id.bank_ids[0].bank_id.name
 
+            gross_amount = int(valores['codes'].get('GROSS', 0.0))
+
             data = {
                 'folha_id': registro.id,
                 'employee_id': valores['employee_id'],
@@ -244,7 +256,7 @@ class Recibo(models.Model):
                 'job_position': valores['job_position'],
                 'basic_amount': valores['codes'].get('BASIC', 0.0),
                 'inc_amount': valores['codes'].get('INC', 0.0),
-                'gross_amount': valores['codes'].get('GROSS', 0.0),
+                'gross_amount': gross_amount,
                 'inss_amount': valores['codes'].get('INSS', 0.0),
                 'net_amount': valores['codes'].get('NET', 0.0),
                 'descontoatraso': valores['codes'].get('D_P_A', 0.0),
@@ -365,3 +377,59 @@ class AggregatedLine(models.Model):
             'type': 'ir.actions.client',
             'tag': 'folhareport',
         }
+
+    def _get_lines_txt(self, docs):
+        lines = []
+        for doc in docs:
+            for linha in doc.linhas_agregadas:
+                line = '%s;%s;%s;%s;%s;%s;%s' % (
+                    (linha.numero_beneficiario or '').strip(),
+                    str(int(
+                        linha.worked_days - linha.total_leaves)) if linha.worked_days and linha.total_leaves else '',
+                    str(int(linha.basic_amount)) if linha.basic_amount else '',
+                    '{:.1f}'.format(linha.inc_amount).strip() if linha.inc_amount else '',
+                    (linha.code_absent or '').strip(),
+                    linha.data_check_in.strftime('%d%m%Y') if linha.data_check_in else '',
+                    (linha.leave_type or '').strip()
+                )
+                lines.append(line)
+        return '\n'.join(lines)
+
+    def render_txt(self, docids, data=None):
+        docs = self.env['folhapagamento.individual.report'].browse(docids)
+        txt_data = self._get_lines_txt(docs)
+        return txt_data
+
+    def action_download_txt(self):
+        txt_content = self.env['report.js_reports_recibo.recibo_report_inss'].render_txt(self.ids)
+        output = io.BytesIO()
+        output.write(txt_content.encode('utf-8'))
+        output.seek(0)
+
+        return {
+            'type': 'ir.actions.act_url',
+            'url': '/web/content?model=%s&id=%s&field=raw_file&filename=INSS.txt&download=true' % (
+                self._name, self.id),
+            'target': 'self',
+        }
+
+class ReportINSS(models.AbstractModel):
+    _name = 'report.js_reports_recibo.recibo_report_inss'
+    _description = 'Relatório INSS em TXT'
+
+    @api.model
+    def render_txt(self, docids, data=None):
+        records = self.env['folhapagamento.individual.report'].browse(docids)
+        lines = []
+        for linha in records:
+            line = '%s;%s;%s;%s;%s;%s;%s' % (
+                (linha.numero_beneficiario or '').strip(),
+                str(int(linha.worked_days - linha.total_leaves)) if linha.worked_days and linha.total_leaves else '',
+                str(int(linha.basic_amount)) if linha.basic_amount else '',
+                '{:.1f}'.format(linha.inc_amount).strip() if linha.inc_amount else '',
+                (linha.code_absent or '').strip(),
+                linha.data_check_in.strftime('%d%m%Y') if linha.data_check_in else '',
+                (linha.leave_type or '').strip()
+            )
+            lines.append(line)
+        return '\n'.join(lines)

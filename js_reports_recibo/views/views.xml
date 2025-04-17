@@ -37,7 +37,7 @@
 
                         <page string="Detalhes por Categoria de Regra Salarial">
                             <field name="linhas_agregadas">
-                                <tree string="Detalhes Agregados de Regra Salarial" editable="bottom" >
+                                <tree string="Detalhes Agregados de Regra Salarial" editable="bottom">
                                     <field name="code"/>
                                     <field name="employee_id" order="employee_id.name asc"/>
                                     <field name="job_position"/>
@@ -46,7 +46,7 @@
                                     <field name="bank_account_number"/>
                                     <field name="basic_amount" string="BASIC"/>
                                     <field name="gross_amount" string="GROSS"/>
-                                    <field name="inc_amount" />
+                                    <field name="inc_amount"/>
                                     <field name="inss_amount" string="INSS"/>
                                     <field name="irps_amout" string="IRPS"/>
                                     <field name="worked_days"/>
@@ -55,13 +55,22 @@
                                     <field name="leave_type"/>
                                     <field name="code_absent"/>
                                     <field name="data_check_in"/>
-<!--                                    <field name="company_registry"/>-->
+                                    <!--                                    <field name="company_registry"/>-->
                                     <field name="net_amount" string="NET"/>
                                 </tree>
                             </field>
                         </page>
                     </notebook>
                 </sheet>
+
+                <header>
+                    <button name="action_download_txt_from_aggregated_lines"
+                            string="Baixar Arquivo TXT"
+                            type="object"
+                            class="oe_highlight"
+                            attrs="{'invisible': [('linhas_agregadas','=',[])]}"/>
+                </header>
+
             </form>
         </field>
     </record>
@@ -83,11 +92,10 @@
         <field name="view_mode">tree,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                 No data added yet
+                No data added yet
             </p>
         </field>
     </record>
-
 
 
     <menuitem id="menu_payroll"
